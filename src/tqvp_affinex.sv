@@ -70,6 +70,7 @@
      logic signed [63:0] tmp_xx, tmp_yy;
 
      logic rd_enable;
+     logic out_valid;
 
 
 
@@ -143,7 +144,6 @@
      always_ff @(posedge clk or negedge rst_n) begin
          if (!rst_n) begin
              control    <= 0;
-             status     <= 0;
              a          <= 0;
              b          <= 0;
              d          <= 0;
@@ -172,7 +172,6 @@
 
      always_ff @(posedge clk or negedge rst_n) begin
          if (!rst_n) begin
-             status     <= 0;
              tmp_x      <= 0;
              tmp_y      <= 0;
              out_x      <= 0;
@@ -183,6 +182,7 @@
              tmp_yy     <= 0;
              fifo_x_reg <= 0;
              fifo_y_reg <= 0;
+             out_valid  <= 0;
 
          end
 
@@ -224,6 +224,7 @@
                 end
 
                 WAIT_S: begin
+                    out_valid <= 1;
                 end
 
                 default: ;
@@ -264,7 +265,7 @@
         (
             .rst_n   ( rst_n           ),
             .clk_i   ( clk             ),
-            .wr_en_i ( (address == ADDR_FIFO_YIN) & (data_write_n != 2'b11) & (!fifo_in_y_full) ),
+            .wr_en_i ( (address == ADDR_FIFO_YIN) && (data_write_n != 2'b11) && (!fifo_in_y_full) ),
             .rd_en_i ( rd_enable       ),
             .din_i   ( data_in         ),
             .dout_o  ( fifo_in_y_dout  ),
@@ -281,7 +282,7 @@
         (
             .rst_n   ( rst_n            ),
             .clk_i   ( clk              ),
-            .rd_en_i ( (address == ADDR_FIFO_XOUT) & (data_read_n != 2'b11) & (!fifo_out_x_empty) ),
+            .rd_en_i ( (address == ADDR_FIFO_XOUT) && (data_read_n != 2'b11) && (!fifo_out_x_empty) ),
             .wr_en_i ( out_wr_en        ),
             .din_i   ( out_x_bat        ),
             .dout_o  ( fifo_out_x_reg   ),
@@ -298,7 +299,7 @@
         (
             .rst_n   ( rst_n            ),
             .clk_i   ( clk              ),
-            .rd_en_i ( (address == ADDR_FIFO_YOUT) & (data_read_n != 2'b11) & (!fifo_out_y_empty) ),
+            .rd_en_i ( (address == ADDR_FIFO_YOUT) && (data_read_n != 2'b11) && (!fifo_out_y_empty) ),
             .wr_en_i ( out_wr_en        ),
             .din_i   ( out_y_bat        ),
             .dout_o  ( fifo_out_y_reg   ),
@@ -325,10 +326,9 @@
 
 
 
-     assign data_ready = 1;
-
-     assign user_interrupt = 0;
-
+     assign data_ready     = 1'b1;
+     assign status         = out_valid ? 1'b1 : 1'b0;
+     assign user_interrupt = 1'b0;
      assign uo_out[7:0]    = 8'h00;
 
      wire _unused = &{ui_in[7:0], data_read_n, 1'b0};

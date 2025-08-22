@@ -180,16 +180,8 @@
     // computation
      always_ff @(posedge clk or negedge rst_n) begin
          if (!rst_n) begin
-             tmp_x      <= 0;
-             tmp_y      <= 0;
              out_x      <= 0;
              out_y      <= 0;
-             out_x_bat  <= 0;
-             out_y_bat  <= 0;
-             tmp_xx     <= 0;
-             tmp_yy     <= 0;
-             fifo_x_reg <= 0;
-             fifo_y_reg <= 0;
              out_valid  <= 0;
 
          end

@@ -37,40 +37,59 @@
      logic        [ 2:0] control;
      logic               status;
 
-     logic signed [31:0] a;
-     logic signed [31:0] b;
-     logic signed [31:0] d;
-     logic signed [31:0] e;
-     logic signed [31:0] tx;
-     logic signed [31:0] ty;
+     logic signed [15:0] a;
+     logic signed [15:0] b;
+     logic signed [15:0] d;
+     logic signed [15:0] e;
+     logic signed [15:0] tx;
+     logic signed [15:0] ty;
 
 
 
-     logic signed [31:0] in_x;
-     logic signed [31:0] in_y;
+     logic signed [15:0] in_x;
+     logic signed [15:0] in_y;
 
-     logic signed [31:0] out_x;
-     logic signed [31:0] out_y;
+     logic signed [15:0] out_x;
+     logic signed [15:0] out_y;
 
-     logic signed [31:0] out_x_bat;
-     logic signed [31:0] out_y_bat;
+     logic signed [15:0] out_x_bat;
+     logic signed [15:0] out_y_bat;
 
      // fifo signals
-     logic signed [31:0] fifo_x_reg, fifo_y_reg;
-     logic signed [31:0] fifo_out_x_reg, fifo_out_y_reg;
-     logic        fifo_in_x_full, fifo_in_y_full;
-     logic        fifo_in_x_empty, fifo_in_y_empty;
-     logic        fifo_out_x_full, fifo_out_y_full;
-     logic        fifo_out_x_empty, fifo_out_y_empty;
-     logic        out_wr_en;
-     logic signed [31:0] fifo_in_x_dout, fifo_in_y_dout;
+     logic signed [15:0] fifo_x_reg, fifo_y_reg;
+     logic signed [15:0] fifo_out_x_reg, fifo_out_y_reg;
+     logic               fifo_in_x_full, fifo_in_y_full;
+     logic               fifo_in_x_empty, fifo_in_y_empty;
+     logic               fifo_out_x_full, fifo_out_y_full;
+     logic               fifo_out_x_empty, fifo_out_y_empty;
+     logic               out_wr_en;
+     logic signed [15:0] fifo_in_x_dout, fifo_in_y_dout;
 
      // temp signals
-     logic signed [63:0] tmp_x, tmp_y;
-     logic signed [63:0] tmp_xx, tmp_yy;
+     logic signed [31:0] tmp_x, tmp_y;
+
+     /* verilator lint_off UNUSEDSIGNAL */
+     logic signed [31:0] tmp_xx, tmp_yy;
+     /* verilator lint_on UNUSEDSIGNAL */
 
      logic rd_enable;
      logic out_valid;
+
+     // multiplication
+     logic signed [31:0] res_mul1;
+     logic signed [31:0] res_mul2;
+     logic signed [31:0] res_ax;
+     logic signed [31:0] res_bx;
+     logic signed [31:0] res_dx;
+     logic signed [31:0] res_ex;
+     logic signed [31:0] res_by;
+     logic signed [31:0] res_ey;
+     logic               busy_mul;
+     logic               busy_mul1;
+     logic               busy_mul2;
+
+
+     assign busy_mul = busy_mul1 || busy_mul2;
 
 
 
@@ -95,13 +114,15 @@
 
      // FSM
 
-     typedef enum logic [2:0] {
-        IDLE    = 3'd0,
-        READ    = 3'd1,
-        COMPUTE = 3'd2,
-        SHIFT   = 3'd3,
-        WRITE   = 3'd4,
-        WAIT_S  = 3'd5
+     typedef enum logic [3:0] {
+        IDLE          = 4'd0,
+        READ          = 4'd1,
+        COMPUTE1      = 4'd2,
+        COMPUTE1_WAIT = 4'd3,
+        COMPUTE2      = 4'd4,
+        COMPUTE2_WAIT = 4'd5,
+        ADD           = 4'd6,
+        WRITE         = 4'd7
      } state_t;
 
      state_t currentState, nextState;
@@ -118,19 +139,30 @@
         nextState = currentState;
 
         case(currentState)
-            IDLE:  if (!control[0] && !fifo_in_x_empty && !fifo_in_y_empty
+            IDLE:   if (control[0]) begin
+                        nextState = COMPUTE1;
+                    end
+                    else if (control[1] && !fifo_in_x_empty && !fifo_in_y_empty
                        && !fifo_out_x_full && !fifo_out_y_full)
                        nextState = READ;
 
-            READ:    nextState = COMPUTE;
+            READ:          nextState = COMPUTE1;
 
-            COMPUTE: nextState = SHIFT;
+            COMPUTE1:      nextState = COMPUTE1_WAIT;
 
-            SHIFT:   nextState = WRITE;
+            COMPUTE1_WAIT: if (!busy_mul) begin
+                              nextState = COMPUTE2;
+            end
 
-            WRITE:   nextState = WAIT_S;
+            COMPUTE2:      nextState = COMPUTE2_WAIT;
 
-            WAIT_S: nextState = IDLE;
+            COMPUTE2_WAIT: if (!busy_mul) begin
+                              nextState = ADD;
+            end
+
+            ADD:           nextState = WRITE;
+
+            WRITE:         nextState = IDLE;
 
             default: ;
         endcase
@@ -154,19 +186,21 @@
          else if (data_write_n != 2'b11) begin
             case(address)
                 ADDR_CONTROL:  control <= data_in[2:0];
-                ADDR_A      :        a <= data_in;
-                ADDR_B      :        b <= data_in;
-                ADDR_D      :        d <= data_in;
-                ADDR_E      :        e <= data_in;
-                ADDR_TX     :       tx <= data_in;
-                ADDR_TY     :       ty <= data_in;
-                ADDR_XIN    :     in_x <= data_in;
-                ADDR_YIN    :     in_y <= data_in;
+                ADDR_A      :        a <= data_in[15:0];
+                ADDR_B      :        b <= data_in[15:0];
+                ADDR_D      :        d <= data_in[15:0];
+                ADDR_E      :        e <= data_in[15:0];
+                ADDR_TX     :       tx <= data_in[15:0];
+                ADDR_TY     :       ty <= data_in[15:0];
+                ADDR_XIN    :     in_x <= data_in[15:0];
+                ADDR_YIN    :     in_y <= data_in[15:0];
                 default     : ;
             endcase
              end
         end
 
+
+    // computation
      always_ff @(posedge clk or negedge rst_n) begin
          if (!rst_n) begin
              tmp_x      <= 0;
@@ -182,20 +216,7 @@
              out_valid  <= 0;
 
          end
-
-         else if (control[0]) begin
-
-             tmp_x  <= (a) * (in_x) + (b) * (in_y);
-             tmp_y  <= (d) * (in_x) + (e) * (in_y);
-
-             tmp_xx <= (tmp_x >>> 16);
-             tmp_yy <= (tmp_y >>> 16);
-
-             out_x  <= tmp_xx[31:0] + tx;
-             out_y  <= tmp_yy[31:0] + ty;
-         end
          else begin
-
             case (currentState)
                 IDLE:begin;
                 end
@@ -205,22 +226,31 @@
                     fifo_y_reg <= fifo_in_y_dout;
                 end
 
-                COMPUTE: begin
-                     tmp_x  <= (a) * (fifo_x_reg) + (b) * (fifo_y_reg);
-                     tmp_y  <= (d) * (fifo_x_reg) + (e) * (fifo_y_reg);
+                COMPUTE1: begin
+                    res_ax <= res_mul1;
+                    res_dx <= res_mul2;
                 end
 
-                SHIFT: begin
-                    tmp_xx <= (tmp_x >>> 16);
-                    tmp_yy <= (tmp_y >>> 16);
+
+                COMPUTE2: begin
+                    res_by  <= res_mul1;
+                    res_ey  <= res_mul2;
+                end
+
+                ADD: begin
+                    // final addition and shift for single-point mode
+                    if (control[0] == 1'b1) begin
+                        out_x <= (res_ax >>> 8) + (res_by >>> 8) + tx;
+                        out_y <= (res_dx >>> 8) + (res_ey >>> 8) + ty;
+                    end
+                    // final addition and shift for batch mode
+                    else begin
+                        out_x_bat <= (res_ax >>> 8) + (res_by >>> 8) + tx;
+                        out_y_bat <= (res_dx >>> 8) + (res_ey >>> 8) + ty;
+                    end
                 end
 
                 WRITE: begin
-                    out_x_bat  <= tmp_xx[31:0] + tx;
-                    out_y_bat  <= tmp_yy[31:0] + ty;
-                end
-
-                WAIT_S: begin
                     out_valid <= 1;
                 end
 
@@ -231,15 +261,70 @@
          end
         end
 
-        assign out_wr_en = (currentState == WAIT_S) && (!control[0]);
+        assign out_wr_en = (currentState == WRITE) && (!control[0]);
         assign rd_enable = (currentState == READ) && (!control[0]);
+
+
+
+        // Control signals for the multi-cycle multipliers
+        logic mul_sel;
+        logic start_mul;
+        assign start_mul = (currentState == COMPUTE1) || (currentState == COMPUTE2);
+        assign mul_sel   = (currentState == COMPUTE1) ? 1'b0 : 1'b1;
+
+        logic signed [15:0] op_a1;
+        assign op_a1 = mul_sel ? b : a;
+
+        logic signed [15:0] op_b1;
+        assign op_b1 = mul_sel ? (control[0] == 1'b1 ? in_y : fifo_y_reg) : (control[0] == 1'b1 ? in_x : fifo_x_reg);
+
+        logic signed [15:0] op_a2;
+        assign op_a2 = mul_sel ? e : d;
+
+        logic signed [15:0] op_b2;
+        assign op_b2 = mul_sel ? (control[0] == 1'b1 ? in_y : fifo_y_reg) : (control[0] == 1'b1 ? in_x : fifo_x_reg);
+
+
+        // MUL instantiation
+
+        mul #
+        (
+            .WIDTH(16)
+        )
+        mul1
+        (
+            .clk_i    ( clk       ),
+            .rst_n    ( rst_n     ),
+            .start_i  ( start_mul ),
+            .a_i      ( op_a1     ),
+            .b_i      ( op_b1     ),
+            .result_o ( res_mul1  ),
+            .busy_o   ( busy_mul1 )
+        );
+
+        mul #
+        (
+            .WIDTH(16)
+        )
+        mul2
+        (
+            .clk_i    ( clk       ),
+            .rst_n    ( rst_n     ),
+            .start_i  ( start_mul ),
+            .a_i      ( op_a2     ),
+            .b_i      ( op_b2     ),
+            .result_o ( res_mul2  ),
+            .busy_o   ( busy_mul2 )
+        );
+
+
 
         // fifo instantiation
 
         fifo #
         (
-            .DEPTH ( 10 ),
-            .WIDTH ( 32 )
+            .DEPTH ( 4 ),
+            .WIDTH ( 16 )
         )
         fifo_inx
         (
@@ -247,7 +332,7 @@
             .clk_i   ( clk             ),
             .wr_en_i ( (address == ADDR_FIFO_XIN) && (data_write_n != 2'b11) && (!fifo_in_x_full) ),
             .rd_en_i ( rd_enable       ),
-            .din_i   ( data_in         ),
+            .din_i   ( data_in[15:0]   ),
             .dout_o  ( fifo_in_x_dout  ),
             .empty_o ( fifo_in_x_empty ),
             .full_o  ( fifo_in_x_full  )
@@ -255,8 +340,8 @@
 
         fifo #
         (
-            .DEPTH ( 10 ),
-            .WIDTH ( 32 )
+            .DEPTH ( 4 ),
+            .WIDTH ( 16 )
         )
         fifo_iny
         (
@@ -264,7 +349,7 @@
             .clk_i   ( clk             ),
             .wr_en_i ( (address == ADDR_FIFO_YIN) && (data_write_n != 2'b11) && (!fifo_in_y_full) ),
             .rd_en_i ( rd_enable       ),
-            .din_i   ( data_in         ),
+            .din_i   ( data_in[15:0]   ),
             .dout_o  ( fifo_in_y_dout  ),
             .empty_o ( fifo_in_y_empty ),
             .full_o  ( fifo_in_y_full  )
@@ -272,8 +357,8 @@
 
         fifo #
         (
-            .DEPTH ( 10 ),
-            .WIDTH ( 32 )
+            .DEPTH ( 4 ),
+            .WIDTH ( 16 )
         )
         fifo_outx
         (
@@ -289,8 +374,8 @@
 
         fifo #
         (
-            .DEPTH ( 10 ),
-            .WIDTH ( 32 )
+            .DEPTH ( 4 ),
+            .WIDTH ( 16 )
         )
         fifo_outy
         (
@@ -307,14 +392,14 @@
 
      assign data_out = (address == ADDR_CONTROL)   ? {29'b0, control}:
                        (address == ADDR_STATUS)    ? {31'b0, status} :
-                       (address == ADDR_A)         ? a :
-                       (address == ADDR_B)         ? b :
-                       (address == ADDR_D)         ? d :
-                       (address == ADDR_E)         ? e :
-                       (address == ADDR_TX)        ? tx:
-                       (address == ADDR_TY)        ? ty:
-                       (address == ADDR_XIN)       ? in_x:
-                       (address == ADDR_YIN)       ? in_y:
+                       //(address == ADDR_A)         ? a :
+                       //(address == ADDR_B)         ? b :
+                       //(address == ADDR_D)         ? d :
+                       //(address == ADDR_E)         ? e :
+                       //(address == ADDR_TX)        ? tx:
+                       //(address == ADDR_TY)        ? ty:
+                       //(address == ADDR_XIN)       ? in_x:
+                       //(address == ADDR_YIN)       ? in_y:
                        (address == ADDR_XOUT)      ? out_x:
                        (address == ADDR_YOUT)      ? out_y:
                        (address == ADDR_FIFO_XOUT) ? fifo_out_x_reg:

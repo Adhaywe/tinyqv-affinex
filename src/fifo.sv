@@ -6,7 +6,7 @@
 
 module fifo #
 (
-    parameter DEPTH=8, WIDTH=16
+    parameter DEPTH=4, WIDTH=16
 )
 (
     input                     rst_n,

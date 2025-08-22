@@ -19,6 +19,7 @@ project:
   source_files:
     - "tqvp_affinex.sv"
     - "fifo.sv"
+    - "mul.sv"
     - "tt_wrapper.v"
     - "test_harness/falling_edge_detector.sv"
     - "test_harness/rising_edge_detector.sv"

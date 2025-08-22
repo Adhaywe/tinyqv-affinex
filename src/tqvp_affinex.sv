@@ -52,26 +52,6 @@
      logic signed [15:0] out_x;
      logic signed [15:0] out_y;
 
-     logic signed [15:0] out_x_bat;
-     logic signed [15:0] out_y_bat;
-
-     // fifo signals
-     logic signed [15:0] fifo_x_reg, fifo_y_reg;
-     logic signed [15:0] fifo_out_x_reg, fifo_out_y_reg;
-     logic               fifo_in_x_full, fifo_in_y_full;
-     logic               fifo_in_x_empty, fifo_in_y_empty;
-     logic               fifo_out_x_full, fifo_out_y_full;
-     logic               fifo_out_x_empty, fifo_out_y_empty;
-     logic               out_wr_en;
-     logic signed [15:0] fifo_in_x_dout, fifo_in_y_dout;
-
-     // temp signals
-     logic signed [31:0] tmp_x, tmp_y;
-
-     /* verilator lint_off UNUSEDSIGNAL */
-     logic signed [31:0] tmp_xx, tmp_yy;
-     /* verilator lint_on UNUSEDSIGNAL */
-
      logic rd_enable;
      logic out_valid;
 
@@ -142,9 +122,6 @@
             IDLE:   if (control[0]) begin
                         nextState = COMPUTE1;
                     end
-                    else if (control[1] && !fifo_in_x_empty && !fifo_in_y_empty
-                       && !fifo_out_x_full && !fifo_out_y_full)
-                       nextState = READ;
 
             READ:          nextState = COMPUTE1;
 
@@ -221,9 +198,9 @@
                 IDLE:begin;
                 end
 
-                READ: begin
-                    fifo_x_reg <= fifo_in_x_dout;
-                    fifo_y_reg <= fifo_in_y_dout;
+                READ: begin;
+                    //fifo_x_reg <= fifo_in_x_dout;
+                    //fifo_y_reg <= fifo_in_y_dout;
                 end
 
                 COMPUTE1: begin
@@ -242,11 +219,6 @@
                     if (control[0] == 1'b1) begin
                         out_x <= (res_ax >>> 8) + (res_by >>> 8) + tx;
                         out_y <= (res_dx >>> 8) + (res_ey >>> 8) + ty;
-                    end
-                    // final addition and shift for batch mode
-                    else begin
-                        out_x_bat <= (res_ax >>> 8) + (res_by >>> 8) + tx;
-                        out_y_bat <= (res_dx >>> 8) + (res_ey >>> 8) + ty;
                     end
                 end
 
@@ -276,13 +248,13 @@
         assign op_a1 = mul_sel ? b : a;
 
         logic signed [15:0] op_b1;
-        assign op_b1 = mul_sel ? (control[0] == 1'b1 ? in_y : fifo_y_reg) : (control[0] == 1'b1 ? in_x : fifo_x_reg);
+        assign op_b1 = mul_sel ? (control[0] == 1'b1 ? in_y : 0) : (control[0] == 1'b1 ? in_x : 0);
 
         logic signed [15:0] op_a2;
         assign op_a2 = mul_sel ? e : d;
 
         logic signed [15:0] op_b2;
-        assign op_b2 = mul_sel ? (control[0] == 1'b1 ? in_y : fifo_y_reg) : (control[0] == 1'b1 ? in_x : fifo_x_reg);
+        assign op_b2 = mul_sel ? (control[0] == 1'b1 ? in_y : 0) : (control[0] == 1'b1 ? in_x : 0);
 
 
         // MUL instantiation
@@ -318,76 +290,6 @@
         );
 
 
-
-        // fifo instantiation
-
-        fifo #
-        (
-            .DEPTH ( 4 ),
-            .WIDTH ( 16 )
-        )
-        fifo_inx
-        (
-            .rst_n   ( rst_n           ),
-            .clk_i   ( clk             ),
-            .wr_en_i ( (address == ADDR_FIFO_XIN) && (data_write_n != 2'b11) && (!fifo_in_x_full) ),
-            .rd_en_i ( rd_enable       ),
-            .din_i   ( data_in[15:0]   ),
-            .dout_o  ( fifo_in_x_dout  ),
-            .empty_o ( fifo_in_x_empty ),
-            .full_o  ( fifo_in_x_full  )
-        );
-
-        fifo #
-        (
-            .DEPTH ( 4 ),
-            .WIDTH ( 16 )
-        )
-        fifo_iny
-        (
-            .rst_n   ( rst_n           ),
-            .clk_i   ( clk             ),
-            .wr_en_i ( (address == ADDR_FIFO_YIN) && (data_write_n != 2'b11) && (!fifo_in_y_full) ),
-            .rd_en_i ( rd_enable       ),
-            .din_i   ( data_in[15:0]   ),
-            .dout_o  ( fifo_in_y_dout  ),
-            .empty_o ( fifo_in_y_empty ),
-            .full_o  ( fifo_in_y_full  )
-        );
-
-        fifo #
-        (
-            .DEPTH ( 4 ),
-            .WIDTH ( 16 )
-        )
-        fifo_outx
-        (
-            .rst_n   ( rst_n            ),
-            .clk_i   ( clk              ),
-            .rd_en_i ( (address == ADDR_FIFO_XOUT) && (data_read_n != 2'b11) && (!fifo_out_x_empty) ),
-            .wr_en_i ( out_wr_en        ),
-            .din_i   ( out_x_bat        ),
-            .dout_o  ( fifo_out_x_reg   ),
-            .empty_o ( fifo_out_x_empty ),
-            .full_o  ( fifo_out_x_full  )
-        );
-
-        fifo #
-        (
-            .DEPTH ( 4 ),
-            .WIDTH ( 16 )
-        )
-        fifo_outy
-        (
-            .rst_n   ( rst_n            ),
-            .clk_i   ( clk              ),
-            .rd_en_i ( (address == ADDR_FIFO_YOUT) && (data_read_n != 2'b11) && (!fifo_out_y_empty) ),
-            .wr_en_i ( out_wr_en        ),
-            .din_i   ( out_y_bat        ),
-            .dout_o  ( fifo_out_y_reg   ),
-            .empty_o ( fifo_out_y_empty ),
-            .full_o  ( fifo_out_y_full  )
-        );
 
 
      assign data_out = (address == ADDR_CONTROL)   ? {29'b0, control}:

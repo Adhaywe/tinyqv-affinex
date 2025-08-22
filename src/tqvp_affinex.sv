@@ -35,7 +35,7 @@
 
      // registers
      logic        [ 2:0] control;
-     logic        [ 2:0] status;
+     logic               status;
 
      logic signed [31:0] a;
      logic signed [31:0] b;
@@ -135,9 +135,6 @@
             default: ;
         endcase
      end
-
-
-
 
 
      //write logic
@@ -309,7 +306,7 @@
 
 
      assign data_out = (address == ADDR_CONTROL)   ? {29'b0, control}:
-                       (address == ADDR_STATUS)    ? {29'b0, status} :
+                       (address == ADDR_STATUS)    ? {31'b0, status} :
                        (address == ADDR_A)         ? a :
                        (address == ADDR_B)         ? b :
                        (address == ADDR_D)         ? d :

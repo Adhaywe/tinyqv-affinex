@@ -225,8 +225,8 @@
          end
         end
 
-        assign out_wr_en = (currentState == WRITE) && (!control[0]);
-        assign rd_enable = (currentState == READ) && (!control[0]);
+        //assign out_wr_en = (currentState == WRITE) && (!control[0]);
+        //assign rd_enable = (currentState == READ) && (!control[0]);
 
 
 

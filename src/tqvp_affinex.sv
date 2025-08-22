@@ -88,8 +88,8 @@
      localparam ADDR_YOUT      = 6'h2C; // Output Y
      localparam ADDR_FIFO_XIN  = 6'h30; // FIFO input X
      localparam ADDR_FIFO_YIN  = 6'h34; // FIFO input Y
-     localparam ADDR_FIFO_XOUT = 6'h38; // FIFO output X
-     localparam ADDR_FIFO_YOUT = 6'h3C; // FIFO output Y
+     //localparam ADDR_FIFO_XOUT = 6'h38; // FIFO output X
+     //localparam ADDR_FIFO_YOUT = 6'h3C; // FIFO output Y
 
 
      // FSM
@@ -296,8 +296,8 @@
                        //(address == ADDR_YIN)       ? in_y:
                        (address == ADDR_XOUT)      ? out_x:
                        (address == ADDR_YOUT)      ? out_y:
-                       (address == ADDR_FIFO_XOUT) ? fifo_out_x_reg:
-                       (address == ADDR_FIFO_YOUT) ? fifo_out_y_reg:
+                       //(address == ADDR_FIFO_XOUT) ? fifo_out_x_reg:
+                       //(address == ADDR_FIFO_YOUT) ? fifo_out_y_reg:
                        32'd0;
 
 

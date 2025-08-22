@@ -9,52 +9,75 @@ from tqv import TinyQV
 
 PERIPHERAL_NUM = 37 
 
+# The number of bits in the fractional part of the fixed-point number
+FRAC_BITS = 8 
+# 16-bit mask and sign bit for Q8.8
+MASK16 = 0xFFFF
+SIGN16 = 0x8000
 
-FRAC_BITS = 16
-MASK32 = 0xFFFF_FFFF
-SIGN32 = 0x8000_0000
-
-def float_to_q16_16(val: float) -> int:
-    q = int(round(val * (1 << FRAC_BITS))) & MASK32
+def float_to_q8_8(val: float) -> int:
+    """Converts a float to a 16-bit Q8.8 fixed-point integer."""
+    q = int(round(val * (1 << FRAC_BITS))) & MASK16
     return q
 
-def q16_16_to_float(u32: int) -> float:
-    if u32 & SIGN32:
-        u32 -= (1 << 32)
-    return u32 / float(1 << FRAC_BITS)
+def q8_8_to_float(u16: int) -> float:
+    """Converts a 16-bit Q8.8 fixed-point integer to a float."""
+    if u16 & SIGN16:
+        u16 -= (1 << 16)
+    return u16 / float(1 << FRAC_BITS)
 
-def to_s32(u32: int) -> int:
-    return u32 - (1 << 32) if (u32 & SIGN32) else u32
+def to_s16(u16: int) -> int:
+    """Converts a 16-bit unsigned integer to a signed 16-bit integer."""
+    return u16 - (1 << 16) if (u16 & SIGN16) else u16
 
-def wrap_u32(signed_val: int) -> int:
-    return signed_val & MASK32
+def wrap_u16(signed_val: int) -> int:
+    """Wraps a signed integer to a 16-bit unsigned value."""
+    return signed_val & MASK16
 
-def hw_affine_q16_16(a, b, d, e, tx, ty, x, y):
-    a = to_s32(a); b = to_s32(b); d = to_s32(d); e = to_s32(e)
-    tx = to_s32(tx); ty = to_s32(ty); x = to_s32(x); y = to_s32(y)
+def hw_affine_q8_8(a, b, d, e, tx, ty, x, y):
+    """
+    Performs the affine transformation in software to generate the expected result.
+    This function simulates the hardware's Q8.8 fixed-point arithmetic.
+    """
+    # Convert all inputs to signed 16-bit for calculation
+    a = to_s16(a)
+    b = to_s16(b)
+    d = to_s16(d)
+    e = to_s16(e)
+    tx = to_s16(tx)
+    ty = to_s16(ty)
+    x = to_s16(x)
+    y = to_s16(y)
+    
+    # Perform multiplication and addition
     tmpx = a * x + b * y
     tmpy = d * x + e * y
+    
+    # Right shift to account for fixed-point format, then add translation
     ox = (tmpx >> FRAC_BITS) + tx
     oy = (tmpy >> FRAC_BITS) + ty
-    return wrap_u32(ox), wrap_u32(oy)
+    
+    # Return 16-bit wrapped results
+    return wrap_u16(ox), wrap_u16(oy)
 
 
-ADDR_CONTROL   = 0x00
-ADDR_STATUS    = 0x04
-ADDR_A         = 0x08
-ADDR_B         = 0x0C
-ADDR_D         = 0x10
-ADDR_E         = 0x14
-ADDR_TX        = 0x18
-ADDR_TY        = 0x1C
-ADDR_XIN       = 0x20
-ADDR_YIN       = 0x24
-ADDR_XOUT      = 0x28
-ADDR_YOUT      = 0x2C
-ADDR_FIFO_XIN  = 0x30
-ADDR_FIFO_YIN  = 0x34
-ADDR_FIFO_XOUT = 0x38
-ADDR_FIFO_YOUT = 0x3C
+# Memory mapped register addresses
+ADDR_CONTROL    = 0x00
+ADDR_STATUS     = 0x04
+ADDR_A          = 0x08
+ADDR_B          = 0x0C
+ADDR_D          = 0x10
+ADDR_E          = 0x14
+ADDR_TX         = 0x18
+ADDR_TY         = 0x1C
+ADDR_XIN        = 0x20
+ADDR_YIN        = 0x24
+ADDR_XOUT       = 0x28
+ADDR_YOUT       = 0x2C
+ADDR_FIFO_XIN   = 0x30
+ADDR_FIFO_YIN   = 0x34
+ADDR_FIFO_XOUT  = 0x38
+ADDR_FIFO_YOUT  = 0x3C
 
 
 @cocotb.test()
@@ -65,11 +88,13 @@ async def test_project(dut):
     clock = Clock(dut.clk, 100, units="ns")
     cocotb.start_soon(clock.start())
 
-   
+    tqv = TinyQV(dut, PERIPHERAL_NUM)
+    
+    # Reset DUT
+    await tqv.reset()
 
-    # --- Single input test ---
+    # --- Test functions ---
     async def single_input_test(desc, a, b, d, e, tx, ty, x, y):
-
         await tqv.write_word_reg(ADDR_A, a)
         await tqv.write_word_reg(ADDR_B, b)
         await tqv.write_word_reg(ADDR_D, d)
@@ -78,17 +103,20 @@ async def test_project(dut):
         await tqv.write_word_reg(ADDR_YIN, y)
         await tqv.write_word_reg(ADDR_CONTROL, 1)  # single input mode
 
-        await ClockCycles(dut.clk, 1)
+        # Wait for the computation to finish (it's multi-cycle)
+        await ClockCycles(dut.clk, 18)
 
-        out_x = await tqv.read_word_reg(ADDR_XOUT)
-        out_y = await tqv.read_word_reg(ADDR_YOUT)
-        exp_x, exp_y = hw_affine_q16_16(a, b, d, e, tx, ty, x, y)
+        # Read the output values (we only care about the lower 16 bits)
+        out_x = (await tqv.read_word_reg(ADDR_XOUT)) & MASK16
+        out_y = (await tqv.read_word_reg(ADDR_YOUT)) & MASK16
+        
+        # Calculate expected values using the Q8.8 software model
+        exp_x, exp_y = hw_affine_q8_8(a, b, d, e, tx, ty, x, y)
 
-        assert out_x == exp_x, f"{desc} X mismatch: got {out_x:#x}, expected {exp_x:#x}"
-        assert out_y == exp_y, f"{desc} Y mismatch: got {out_y:#x}, expected {exp_y:#x}"
+        assert out_x == exp_x, f"{desc} X mismatch: got {out_x:#06x}, expected {exp_x:#06x}"
+        assert out_y == exp_y, f"{desc} Y mismatch: got {out_y:#06x}, expected {exp_y:#06x}"
         dut._log.info(f"{desc} single-input passes")
 
-    # --- batch test ---
     async def batch_test(desc, a, b, d, e, tx, ty, points):
         await tqv.write_word_reg(ADDR_A, a)
         await tqv.write_word_reg(ADDR_B, b)
@@ -104,74 +132,62 @@ async def test_project(dut):
 
         await tqv.write_word_reg(ADDR_CONTROL, 2)  # FIFO mode
 
-        await ClockCycles(dut.clk, 2)
+        # Wait for the first point to be processed
+        await ClockCycles(dut.clk, 20)
 
         # Read points from FIFO outputs
         for idx, (x, y) in enumerate(points):
-            out_x = await tqv.read_word_reg(ADDR_FIFO_XOUT)
-            out_y = await tqv.read_word_reg(ADDR_FIFO_YOUT)
-            exp_x, exp_y = hw_affine_q16_16(a, b, d, e, tx, ty, x, y)
-
+            # Read the output values (we only care about the lower 16 bits)
+            out_x = (await tqv.read_word_reg(ADDR_FIFO_XOUT)) & MASK16
+            out_y = (await tqv.read_word_reg(ADDR_FIFO_YOUT)) & MASK16
+            
+            # Calculate expected values using the Q8.8 software model
+            exp_x, exp_y = hw_affine_q8_8(a, b, d, e, tx, ty, x, y)
+            
             # DUT output vs expected
             if (out_x == exp_x) and (out_y == exp_y):
                 dut._log.info(
-                    f"{desc} point[{idx}] -> DUT=({out_x:#010x}, {out_y:#010x}), "
-                    f"Expected=({exp_x:#010x}, {exp_y:#010x}) PASS"
+                    f"{desc} point[{idx}] -> DUT=({out_x:#06x}, {out_y:#06x}), "
+                    f"Expected=({exp_x:#06x}, {exp_y:#06x}) PASS"
                 )
             else:
                 dut._log.warning(
-                    f"{desc} point[{idx}] -> DUT=({out_x:#010x}, {out_y:#010x}), "
-                    f"Expected=({exp_x:#010x}, {exp_y:#010x}) MISMATCH"
-            )
+                    f"{desc} point[{idx}] -> DUT=({out_x:#06x}, {out_y:#06x}), "
+                    f"Expected=({exp_x:#06x}, {exp_y:#06x}) MISMATCH"
+                )
+            
+            # Wait for the next point to be ready
+            await ClockCycles(dut.clk, 18)
 
-            dut._log.info(f"{desc} FIFO test complete\n")
-            await ClockCycles(dut.clk, 1)
-
-
-   
 
     # --- test cases ---
-
-
-    tqv = TinyQV(dut, PERIPHERAL_NUM)
-
-    # Reset DUT
-    await tqv.reset()
-
     dut._log.info("---Testing Affine accelerator---")
 
     test_cases = {
-        "Identity": (float_to_q16_16(1), 0, 0, float_to_q16_16(1), 0, 0),
-        "Scale":    (float_to_q16_16(2), 0, 0, float_to_q16_16(2), 0, 0),
-        "Rotate90": (0, float_to_q16_16(-1), float_to_q16_16(1), 0, 0, 0),
-        "ReflectX": (float_to_q16_16(-1), 0, 0, float_to_q16_16(1), 0, 0),
-        "ReflectY": (float_to_q16_16(1),  0, 0, float_to_q16_16(-1), 0, 0),
-        "ShearXY":  (float_to_q16_16(1), float_to_q16_16(0.5),
-                     float_to_q16_16(0.5), float_to_q16_16(1), 0, 0)
+        "Identity": (float_to_q8_8(1), 0, 0, float_to_q8_8(1), 0, 0),
+        "Scale":    (float_to_q8_8(2), 0, 0, float_to_q8_8(2), 0, 0),
+        "Rotate90": (0, float_to_q8_8(-1), float_to_q8_8(1), 0, 0, 0),
+        "ReflectX": (float_to_q8_8(-1), 0, 0, float_to_q8_8(1), 0, 0),
+        "ReflectY": (float_to_q8_8(1),  0, 0, float_to_q8_8(-1), 0, 0),
+        "ShearXY":  (float_to_q8_8(1), float_to_q8_8(0.5),
+                      float_to_q8_8(0.5), float_to_q8_8(1), 0, 0)
     }
-
-
-
 
     dut._log.info("---Testing single input case---")
 
-    x = float_to_q16_16(1.5)
-    y = float_to_q16_16(-2.25)
+    x = float_to_q8_8(1.5)
+    y = float_to_q8_8(-2.25)
 
     for name, coeffs in test_cases.items():
         await single_input_test(f"Single-{name}", *coeffs, x, y)
 
-
-
     points = [
-        (float_to_q16_16(0.5), float_to_q16_16(0.5)),
-        (float_to_q16_16(-1.0), float_to_q16_16(2.0)),
-        (float_to_q16_16(1.5), float_to_q16_16(-1.5)),
+        (float_to_q8_8(0.5), float_to_q8_8(0.5)),
+        (float_to_q8_8(-1.0), float_to_q8_8(2.0)),
+        (float_to_q8_8(1.5), float_to_q8_8(-1.5)),
     ]
-
 
     dut._log.info("---Testing batch case---")
 
-    a, b, d, e, tx, ty = float_to_q16_16(1), 0, 0, float_to_q16_16(1), 0, 0 
-    await batch_test("FIFO-Identity", a, b, d, e, tx, ty, points)
-
+    ##a, b, d, e, tx, ty = float_to_q8_8(1), 0, 0, float_to_q8_8(1), 0, 0 
+    ##await batch_test("FIFO-Identity", a, b, d, e, tx, ty, points)

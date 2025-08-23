@@ -34,9 +34,7 @@
 
 
      // registers
-     logic        [ 2:0] control;
-     logic               status;
-
+     logic               control, status;
      logic signed [15:0] a;
      logic signed [15:0] b;
      logic signed [15:0] d;
@@ -59,10 +57,8 @@
 
      // multiplication
      logic signed [31:0] res_mul;
-     logic signed [31:0] res_ax;
-     logic signed [31:0] res_dx;
-     logic signed [31:0] res_by;
-     logic signed [31:0] res_ey;
+     logic signed [31:0] acc_x;
+     logic signed [31:0] acc_y;
 
      logic         [1:0] mult_stage;
 
@@ -102,7 +98,7 @@
         nextState = currentState;
 
         case(currentState)
-            IDLE:   if (control[0])
+            IDLE:   if (control)
                         nextState = MULT;
 
             MULT:   if (mult_stage == 3)
@@ -133,7 +129,7 @@
          end
          else if (data_write_n != 2'b11) begin
             case(address)
-                ADDR_CONTROL:  control <= data_in[2:0];
+                ADDR_CONTROL:  control <= data_in[0];
                 ADDR_A      :        a <= data_in[15:0];
                 ADDR_B      :        b <= data_in[15:0];
                 ADDR_D      :        d <= data_in[15:0];
@@ -151,10 +147,8 @@
     // computation
      always_ff @(posedge clk or negedge rst_n) begin
          if (!rst_n) begin
-             res_ax     <= 0;
-             res_by     <= 0;
-             res_dx     <= 0;
-             res_ey     <= 0;
+             acc_x     <= 0;
+             acc_y     <= 0;
              mult_stage <= 0;
              out_x      <= 0;
              out_y      <= 0;
@@ -168,22 +162,22 @@
                 MULT: begin
                     case(mult_stage)
                         0: begin
-                            res_ax     <= res_mul;
+                            acc_x      <= res_mul;
                             mult_stage <= mult_stage + 1;
                         end
 
                         1: begin
-                            res_by     <= res_mul;
+                            acc_x      <= acc_x + res_mul;
                             mult_stage <= mult_stage + 1;
                         end
 
                         2: begin
-                            res_dx     <= res_mul;
+                            acc_y      <= res_mul;
                             mult_stage <= mult_stage + 1;
                         end
 
                         3: begin
-                            res_ey     <= res_mul;
+                            acc_y      <= acc_y + res_mul;
                             mult_stage <= mult_stage + 1;
                         end
 
@@ -192,15 +186,12 @@
                 end
 
                 ADD_SHIFT: begin
-                        out_x <= (res_ax >>> 8) + (res_by >>> 8) + tx;
-                        out_y <= (res_dx >>> 8) + (res_ey >>> 8) + ty;
+                        out_x <= (acc_x >>> 8) + tx;
+                        out_y <= (acc_y >>> 8) + ty;
                     end
 
                 DONE: begin
-                    if (mult_stage == 3)
-                       out_valid <= 1;
-                    else
-                       out_valid <= 0;
+                     out_valid <= 1;
                 end
 
                 default: ;
@@ -236,7 +227,7 @@
 
 
 
-     assign data_out = (address == ADDR_CONTROL)   ? {29'b0, control}:
+     assign data_out = (address == ADDR_CONTROL)   ? {31'b0, control}:
                        (address == ADDR_STATUS)    ? {31'b0, status} :
                        (address == ADDR_XOUT)      ? out_x:
                        (address == ADDR_YOUT)      ? out_y:

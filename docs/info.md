@@ -19,7 +19,32 @@ Peripheral index: nn
 
 ## What it does
 
-Signle-point and batch affine transformations .. to be continued
+Signle-point affine transformations 
+
+Affine transformation in 2D can be expressed as:
+
+    [ x' ]   [ a  b ] [ x ]   [ tx ]
+    [ y' ] = [ d  e ] [ y ] + [ ty ]
+
+Equations:
+
+    x' = a * x + b * y + tx
+    y' = d * x + e * y + ty
+
+
+       Input Point (x, y)
+            |
+            v
+        [ a  b ]
+        [ d  e ]    --> Linear transformation
+            |
+            |
+            v
+    Translation vector (tx, ty)
+            v
+    Output Point (x', y')
+
+
 
 ## Register map
 
@@ -35,18 +60,15 @@ Document the registers that are used to interact with your peripheral
 | 0x14    | E          | R/W    | Coeffient e           |
 | 0x18    | TX         | R/W    | translation vector tx |
 | 0x1C    | TY         | R/W    | translation vector ty |
-| 0x20    | XIN        | R/W    | Single input X        |
-| 0x24    | YIN        | R/W    | Single input Y        |
-| 0x28    | XOUT       | R/W    | Output X              |
-| 0x2C    | YOUT       | R/W    | Output Y              |
-| 0x30    | FIFO_XIN   | R/W    | FIFO input X          |
-| 0x34    | FIFO_YIN   | R/W    | FIFO input Y          |
-| 0x38    | FIFO_XOUT  | R/W    | FIFO output X         |
-| 0x3C    | FIFO_YOUT  | R/W    | FIFO output Y         |
+| 0x20    | XIN        | W      | input X               |
+| 0x24    | YIN        | W      | input Y               |
+| 0x28    | XOUT       | R      | output X              |
+| 0x2C    | YOUT       | R      | output Y              |
 
 ## How to test
 
 Single-Input Test Cases
+
 | Transformation | a  | b   | d   | e  | tx   | ty   | Input (x, y) | Expected Output (x’, y’) |
 | -------------- | -- | --- | --- | -- | ---- | ---- | ------------ | ------------------------ |
 | Identity       | 1  | 0   | 0   | 1  | 0    | 0    | (1.5, -2.25) | (1.5, -2.25)             |
@@ -57,35 +79,6 @@ Single-Input Test Cases
 | Shear XY       | 1  | 0.5 | 0.5 | 1  | 0    | 0    | (1.5, -2.25) | (0.375, 0.75)            |
 | Translation    | 1  | 0   | 0   | 1  | 0.25 | -0.5 | (1.5, -2.25) | (1.75, -2.75)            |
 
-Batch Test Cases
-
-Input Points
-P0 = (0x00008000, 0x00008000) = (0.5, 0.5)
-
-P1 = (0xFFFF0000, 0x00020000) = (-1.0, 2.0)
-
-P2 = (0x00018000, 0xFFFE8000) = (1.5, -1.5)
-
-| Transformation | a  | b   | d   | e  | tx | ty | Input | Expected Output |
-| -------------- | -- | --- | --- | -- | -- | -- | ----- | --------------- |
-| Identity       | 1  | 0   | 0   | 1  | 0  | 0  | P0    | (0.5, 0.5)      |
-|                |    |     |     |    |    |    | P1    | (-1.0, 2.0)     |
-|                |    |     |     |    |    |    | P2    | (1.5, -1.5)     |
-| Scale ×2       | 2  | 0   | 0   | 2  | 0  | 0  | P0    | (1.0, 1.0)      |
-|                |    |     |     |    |    |    | P1    | (-2.0, 4.0)     |
-|                |    |     |     |    |    |    | P2    | (3.0, -3.0)     |
-| Rotate 90°     | 0  | -1  | 1   | 0  | 0  | 0  | P0    | (-0.5, 0.5)     |
-|                |    |     |     |    |    |    | P1    | (-2.0, -1.0)    |
-|                |    |     |     |    |    |    | P2    | (1.5, 1.5)      |
-| ReflectX       | -1 | 0   | 0   | 1  | 0  | 0  | P0    | (-0.5, 0.5)     |
-|                |    |     |     |    |    |    | P1    | (1.0, 2.0)      |
-|                |    |     |     |    |    |    | P2    | (-1.5, -1.5)    |
-| ReflectY       | 1  | 0   | 0   | -1 | 0  | 0  | P0    | (0.5, -0.5)     |
-|                |    |     |     |    |    |    | P1    | (-1.0, -2.0)    |
-|                |    |     |     |    |    |    | P2    | (1.5, 1.5)      |
-| Shear XY       | 1  | 0.5 | 0.5 | 1  | 0  | 0  | P0    | (0.75, 0.75)    |
-|                |    |     |     |    |    |    | P1    | (0.0, 1.5)      |
-|                |    |     |     |    |    |    | P2    | (0.75, -0.75)   |
 
 ## External hardware
 

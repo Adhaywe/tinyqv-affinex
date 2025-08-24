@@ -9,61 +9,31 @@ from tqv import TinyQV
 
 PERIPHERAL_NUM = 37 
 
-# The number of bits in the fractional part of the fixed-point number
-FRAC_BITS = 8 
-# 16-bit mask and sign bit for Q8.8
+# Fixed-point Q8.8 helpers
+FRAC_BITS = 8
 MASK16 = 0xFFFF
 SIGN16 = 0x8000
 
 def float_to_q8_8(val: float) -> int:
-    """Converts a float to a 16-bit Q8.8 fixed-point integer."""
-    q = int(round(val * (1 << FRAC_BITS))) & MASK16
-    return q
-
-def q8_8_to_float(u16: int) -> float:
-    """Converts a 16-bit Q8.8 fixed-point integer to a float."""
-    if u16 & SIGN16:
-        u16 -= (1 << 16)
-    return u16 / float(1 << FRAC_BITS)
+    q = int(round(val * (1 << FRAC_BITS)))
+    return q & MASK16
 
 def to_s16(u16: int) -> int:
-    """Converts a 16-bit unsigned integer to a signed 16-bit integer."""
     return u16 - (1 << 16) if (u16 & SIGN16) else u16
 
 def wrap_u16(signed_val: int) -> int:
-    """Wraps a signed integer to a 16-bit unsigned value."""
     return signed_val & MASK16
 
 def hw_affine_q8_8(a, b, d, e, tx, ty, x, y):
-    """
-    Performs the affine transformation in software to generate the expected result.
-    This function simulates the hardware's Q8.8 fixed-point arithmetic.
-    """
-    # Convert all inputs to signed 16-bit for calculation
-    a = to_s16(a)
-    b = to_s16(b)
-    d = to_s16(d)
-    e = to_s16(e)
-    tx = to_s16(tx)
-    ty = to_s16(ty)
-    x = to_s16(x)
-    y = to_s16(y)
-    
-    # Perform multiplication and addition
+    a, b, d, e, tx, ty, x, y = map(to_s16, (a, b, d, e, tx, ty, x, y))
     tmpx = a * x + b * y
     tmpy = d * x + e * y
-    
-    # Right shift to account for fixed-point format, then add translation
     ox = (tmpx >> FRAC_BITS) + tx
     oy = (tmpy >> FRAC_BITS) + ty
-    
-    # Return 16-bit wrapped results
     return wrap_u16(ox), wrap_u16(oy)
 
-
-# Memory mapped register addresses
+# Register addresses
 ADDR_CONTROL    = 0x00
-ADDR_STATUS     = 0x04
 ADDR_A          = 0x08
 ADDR_B          = 0x0C
 ADDR_D          = 0x10
@@ -74,67 +44,98 @@ ADDR_XIN        = 0x20
 ADDR_YIN        = 0x24
 ADDR_XOUT       = 0x28
 ADDR_YOUT       = 0x2C
-ADDR_FIFO_XIN   = 0x30
-ADDR_FIFO_YIN   = 0x34
-ADDR_FIFO_XOUT  = 0x38
-ADDR_FIFO_YOUT  = 0x3C
 
+
+async def single_input_test(dut, tqv, desc, a, b, d, e, tx, ty, x, y):
+    q_a = float_to_q8_8(a)
+    q_b = float_to_q8_8(b)
+    q_d = float_to_q8_8(d)
+    q_e = float_to_q8_8(e)
+    q_tx = float_to_q8_8(tx)
+    q_ty = float_to_q8_8(ty)
+    q_x = float_to_q8_8(x)
+    q_y = float_to_q8_8(y)
+
+    await tqv.write_word_reg(ADDR_A, q_a)
+    await tqv.write_word_reg(ADDR_B, q_b)
+    await tqv.write_word_reg(ADDR_D, q_d)
+    await tqv.write_word_reg(ADDR_E, q_e)
+    await tqv.write_word_reg(ADDR_TX, q_tx)
+    await tqv.write_word_reg(ADDR_TY, q_ty)
+    await tqv.write_word_reg(ADDR_XIN, q_x)
+    await tqv.write_word_reg(ADDR_YIN, q_y)
+    await tqv.write_word_reg(ADDR_CONTROL, 1)
+
+    await ClockCycles(dut.clk, 200)
+
+    out_x = (await tqv.read_word_reg(ADDR_XOUT)) & MASK16
+    out_y = (await tqv.read_word_reg(ADDR_YOUT)) & MASK16
+
+    exp_x, exp_y = hw_affine_q8_8(q_a, q_b, q_d, q_e, q_tx, q_ty, q_x, q_y)
+
+    assert out_x == exp_x, f"{desc} X mismatch: got {out_x:#06x}, expected {exp_x:#06x}"
+    assert out_y == exp_y, f"{desc} Y mismatch: got {out_y:#06x}, expected {exp_y:#06x}"
+    dut._log.info(f"{desc} passes")
 
 @cocotb.test()
 async def test_project(dut):
-    dut._log.info("Start affine test")
-
-    # Set the clock period to 100 ns (10 MHz)
+    dut._log.info("Start")
+    
     clock = Clock(dut.clk, 100, units="ns")
     cocotb.start_soon(clock.start())
 
     tqv = TinyQV(dut, PERIPHERAL_NUM)
     
-    # Reset DUT
     await tqv.reset()
+    
+    # Normal Test Cases
+    await single_input_test(dut, tqv, "Identity-Normal", 1, 0, 0, 1, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "Scale2-Normal", 2, 0, 0, 2, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "Rotate90-Normal", 0, -1, 1, 0, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "ReflectX-Normal", -1, 0, 0, 1, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "ReflectY-Normal", 1, 0, 0, -1, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "ShearXY-Normal", 1, 0.5, 0.5, 1, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "Translate-Normal", 1, 0, 0, 1, 0.25, -0.5, 1.5, -2.25)
+    
+    # Corner Cases (original tests)
+    await single_input_test(dut, tqv, "Identity-Zero", 1.0, 0, 0, 1.0, 0, 0, 0, 0)
+    await single_input_test(dut, tqv, "Identity-One-One", 1.0, 0, 0, 1.0, 0, 0, 1.0, 1.0)
+    await single_input_test(dut, tqv, "Identity-Frac", 1.0, 0, 0, 1.0, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "Identity-MaxPos", 1.0, 0, 0, 1.0, 0, 0, 127.0, 127.0)
+    await single_input_test(dut, tqv, "Identity-MaxNeg", 1.0, 0, 0, 1.0, 0, 0, -128.0, -128.0)
 
-    # --- Test functions ---
-    async def single_input_test(desc, a, b, d, e, tx, ty, x, y):
-        await tqv.write_word_reg(ADDR_A, a)
-        await tqv.write_word_reg(ADDR_B, b)
-        await tqv.write_word_reg(ADDR_D, d)
-        await tqv.write_word_reg(ADDR_E, e)
-        await tqv.write_word_reg(ADDR_XIN, x)
-        await tqv.write_word_reg(ADDR_YIN, y)
-        await tqv.write_word_reg(ADDR_CONTROL, 1)  # single input mode
+    await single_input_test(dut, tqv, "Scale2-Zero", 2.0, 0, 0, 2.0, 0, 0, 0, 0)
+    await single_input_test(dut, tqv, "Scale2-One-One", 2.0, 0, 0, 2.0, 0, 0, 1.0, 1.0)
+    await single_input_test(dut, tqv, "Scale2-Frac", 2.0, 0, 0, 2.0, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "Scale2-MaxPos", 2.0, 0, 0, 2.0, 0, 0, 127.0, 127.0)
+    await single_input_test(dut, tqv, "Scale2-MaxNeg", 2.0, 0, 0, 2.0, 0, 0, -128.0, -128.0)
 
-        # Wait for the computation to finish (it's multi-cycle)
-        await ClockCycles(dut.clk, 200)
+    await single_input_test(dut, tqv, "Rotate90-Zero", 0, -1.0, 1.0, 0, 0, 0, 0, 0)
+    await single_input_test(dut, tqv, "Rotate90-One-One", 0, -1.0, 1.0, 0, 0, 0, 1.0, 1.0)
+    await single_input_test(dut, tqv, "Rotate90-Frac", 0, -1.0, 1.0, 0, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "Rotate90-MaxPos", 0, -1.0, 1.0, 0, 0, 0, 127.0, 127.0)
+    await single_input_test(dut, tqv, "Rotate90-MaxNeg", 0, -1.0, 1.0, 0, 0, 0, -128.0, -128.0)
 
-        # Read the output values (we only care about the lower 16 bits)
-        out_x = (await tqv.read_word_reg(ADDR_XOUT)) & MASK16
-        out_y = (await tqv.read_word_reg(ADDR_YOUT)) & MASK16
-        
-        # Calculate expected values using the Q8.8 software model
-        exp_x, exp_y = hw_affine_q8_8(a, b, d, e, tx, ty, x, y)
+    await single_input_test(dut, tqv, "ReflectX-Zero", -1.0, 0, 0, 1.0, 0, 0, 0, 0)
+    await single_input_test(dut, tqv, "ReflectX-One-One", -1.0, 0, 0, 1.0, 0, 0, 1.0, 1.0)
+    await single_input_test(dut, tqv, "ReflectX-Frac", -1.0, 0, 0, 1.0, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "ReflectX-MaxPos", -1.0, 0, 0, 1.0, 0, 0, 127.0, 127.0)
+    await single_input_test(dut, tqv, "ReflectX-MaxNeg", -1.0, 0, 0, 1.0, 0, 0, -128.0, -128.0)
 
-        assert out_x == exp_x, f"{desc} X mismatch: got {out_x:#06x}, expected {exp_x:#06x}"
-        assert out_y == exp_y, f"{desc} Y mismatch: got {out_y:#06x}, expected {exp_y:#06x}"
-        dut._log.info(f"{desc} single-input passes")
+    await single_input_test(dut, tqv, "ReflectY-Zero", 1.0, 0, 0, -1.0, 0, 0, 0, 0)
+    await single_input_test(dut, tqv, "ReflectY-One-One", 1.0, 0, 0, -1.0, 0, 0, 1.0, 1.0)
+    await single_input_test(dut, tqv, "ReflectY-Frac", 1.0, 0, 0, -1.0, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "ReflectY-MaxPos", 1.0, 0, 0, -1.0, 0, 0, 127.0, 127.0)
+    await single_input_test(dut, tqv, "ReflectY-MaxNeg", 1.0, 0, 0, -1.0, 0, 0, -128.0, -128.0)
 
+    await single_input_test(dut, tqv, "ShearXY-Zero", 1.0, 0.5, 0.5, 1.0, 0, 0, 0, 0)
+    await single_input_test(dut, tqv, "ShearXY-One-One", 1.0, 0.5, 0.5, 1.0, 0, 0, 1.0, 1.0)
+    await single_input_test(dut, tqv, "ShearXY-Frac", 1.0, 0.5, 0.5, 1.0, 0, 0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "ShearXY-MaxPos", 1.0, 0.5, 0.5, 1.0, 0, 0, 127.0, 127.0)
+    await single_input_test(dut, tqv, "ShearXY-MaxNeg", 1.0, 0.5, 0.5, 1.0, 0, 0, -128.0, -128.0)
 
-
-    # --- test cases ---
-    dut._log.info("---Testing Affine accelerator---")
-
-    test_cases = {
-        "Scale":    (float_to_q8_8(2), 0, 0, float_to_q8_8(2), 0, 0),
-        "Rotate90": (0, float_to_q8_8(-1), float_to_q8_8(1), 0, 0, 0),
-        "ReflectX": (float_to_q8_8(-1), 0, 0, float_to_q8_8(1), 0, 0),
-        "ReflectY": (float_to_q8_8(1),  0, 0, float_to_q8_8(-1), 0, 0),
-        #"ShearXY":  (float_to_q8_8(1), float_to_q8_8(0.5),
-       #               float_to_q8_8(0.5), float_to_q8_8(1), 0, 0)
-    }
-
-    dut._log.info("---Testing single input case---")
-
-    x = float_to_q8_8(1.5)
-    y = float_to_q8_8(-2.25)
-
-    for name, coeffs in test_cases.items():
-        await single_input_test(f"Single-{name}", *coeffs, x, y)
+    await single_input_test(dut, tqv, "Translate-Zero", 1.0, 0, 0, 1.0, 5.0, -3.0, 0, 0)
+    await single_input_test(dut, tqv, "Translate-One-One", 1.0, 0, 0, 1.0, 5.0, -3.0, 1.0, 1.0)
+    await single_input_test(dut, tqv, "Translate-Frac", 1.0, 0, 0, 1.0, 5.0, -3.0, 1.5, -2.25)
+    await single_input_test(dut, tqv, "Translate-MaxPos", 1.0, 0, 0, 1.0, 5.0, -3.0, 127.0, 127.0)
+    await single_input_test(dut, tqv, "Translate-MaxNeg", 1.0, 0, 0, 1.0, 5.0, -3.0, -128.0, -128.0)

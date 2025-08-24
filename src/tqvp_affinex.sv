@@ -61,7 +61,7 @@
      logic signed [31:0] acc_y;
 
      logic         [1:0] mult_stage;
-
+     logic               done, start, busy;
 
      // memory mapped register addresses
      localparam ADDR_CONTROL   = 6'h00; // Control
@@ -96,13 +96,16 @@
 
      always_comb begin
         nextState = currentState;
+        start = 1'b0;
 
         case(currentState)
             IDLE:   if (control)
                         nextState = MULT;
 
-            MULT:   if (mult_stage == 3)
+            MULT:   if (mult_stage == 3 && done)
                        nextState = ADD_SHIFT;
+                    else if (!busy)
+                       start = 1'b1;
 
             ADD_SHIFT: nextState = DONE;
 
@@ -147,8 +150,8 @@
     // computation
      always_ff @(posedge clk or negedge rst_n) begin
          if (!rst_n) begin
-             acc_x     <= 0;
-             acc_y     <= 0;
+             acc_x      <= 0;
+             acc_y      <= 0;
              mult_stage <= 0;
              out_x      <= 0;
              out_y      <= 0;
@@ -160,29 +163,32 @@
                 end
 
                 MULT: begin
-                    case(mult_stage)
-                        0: begin
-                            acc_x      <= res_mul;
-                            mult_stage <= mult_stage + 1;
-                        end
+                    if (done) begin
+                        case(mult_stage)
+                            0: begin
+                                acc_x      <= res_mul;
+                                //mult_stage <= mult_stage + 1;
+                            end
 
-                        1: begin
-                            acc_x      <= acc_x + res_mul;
-                            mult_stage <= mult_stage + 1;
-                        end
+                            1: begin
+                                acc_x      <= acc_x + res_mul;
+                                //mult_stage <= mult_stage + 1;
+                            end
 
-                        2: begin
-                            acc_y      <= res_mul;
-                            mult_stage <= mult_stage + 1;
-                        end
+                            2: begin
+                                acc_y      <= res_mul;
+                                //mult_stage <= mult_stage + 1;
+                            end
 
-                        3: begin
-                            acc_y      <= acc_y + res_mul;
-                            mult_stage <= mult_stage + 1;
-                        end
+                            3: begin
+                                acc_y      <= acc_y + res_mul;
+                                //mult_stage <= mult_stage + 1;
+                            end
 
-                        default: ;
-                    endcase
+                            default: ;
+                        endcase
+                        mult_stage <= mult_stage + 1;
+                    end
                 end
 
                 ADD_SHIFT: begin
@@ -220,9 +226,14 @@
         )
         mul1
         (
+            .clk      ( clk                  ),
+            .rst_n    ( rst_n                ),
+            .start    ( start    ),
             .a_i      ( op_a                 ),
             .b_i      ( op_b                 ),
-            .result_o ( res_mul              )
+            .result_o ( res_mul              ),
+            .done     ( done                 ),
+            .busy     ( busy                 )
         );
 
 

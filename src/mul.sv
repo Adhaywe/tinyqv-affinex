@@ -36,7 +36,7 @@ module mul
             done_reg   <= 1'b0;
             start_reg <= start;
 
-            if (start_pipe && !busy_reg) begin
+            if (start_reg && !busy_reg) begin
                 a_reg   <= (a_i[WIDTH-1]) ? ~a_i+1 : a_i;
                 b_reg   <= (b_i[WIDTH-1]) ? ~b_i+1 : b_i;
                 acc       <= 0;

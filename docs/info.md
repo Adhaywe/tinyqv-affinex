@@ -92,28 +92,25 @@ Single-Input Test Cases
 
 To help visualize the transformations, conceptual shapes (like a square) can be plotted alongside the single input point. These diagrams are **for documentation purposes only**; the hardware operates on **one point at a time**.
 
+<table>
+<tr>
+<td><img src="scale.png" alt="Rotation" width="300"></td>
+<td><img src="rotation.png" alt="Scaling" width="300"></td>
+</tr>
+<tr>
+<td><img src="shear.png" alt="Shear" width="300"></td>
+<td><img src="translation.png" alt="Translation" width="300"></td>
+</tr>
+</table>
+
+**Legend:**
+
 - **Blue dashed:** original conceptual shape  
 - **Red dashed:** transformed conceptual shape  
 - **Blue dot:** input point  
 - **Red dot:** transformed point  
 - **Arrow:** movement of the point
 
-Examples:
-
-- Rotation 45°  
-  ![Rotation 45](rotation.png)  
-
-- Scaling  
-  ![Scaling](scale.png)  
-
-- Shear
-  ![Shear XY](shear.png)  
-
-- Translation
-  ![Translation](translation.png)  
-
-
----
 
 ## Example Usage
 
@@ -126,6 +123,9 @@ TX = 0, TY = 0
 
 Write input point: (10.0, 0.0)
 Read output: (7.07, 7.07)
+
+
+
 
 ## External hardware
 

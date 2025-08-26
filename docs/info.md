@@ -11,7 +11,7 @@ You can also include images in this folder and reference them in the markdown. E
 512 kb in size, and the combined size of all images must be less than 1 MB.
 -->
 
-# Affinex - RISC-V Affine Transformation Accelerator
+# Affinex - Affine Transformation Accelerator
 
 Author: Adam Gebregziaber
 
@@ -26,6 +26,14 @@ Affine transformation in 2D can be expressed as:
     [ x' ]   [ a  b ] [ x ]   [ tx ]
     [ y' ] = [ d  e ] [ y ] + [ ty ]
 
+    \[
+\begin{bmatrix} x' \\ y' \end{bmatrix} = 
+\begin{bmatrix} a & b \\ d & e \end{bmatrix} 
+\begin{bmatrix} x \\ y \end{bmatrix} + 
+\begin{bmatrix} tx \\ ty \end{bmatrix}
+\]
+
+
 Equations:
 
     x' = a * x + b * y + tx
@@ -36,7 +44,7 @@ Equations:
             |
             v
         [ a  b ]
-        [ d  e ]    --> Linear transformation
+        [ d  e ]  (2D Linear transformation matrix)
             |
             |
             v
@@ -79,6 +87,45 @@ Single-Input Test Cases
 | Shear XY       | 1  | 0.5 | 0.5 | 1  | 0    | 0    | (1.5, -2.25) | (0.375, 0.75)            |
 | Translation    | 1  | 0   | 0   | 1  | 0.25 | -0.5 | (1.5, -2.25) | (1.75, -2.75)            |
 
+
+## Conceptual Diagrams
+
+To help visualize the transformations, conceptual shapes (like a square) can be plotted alongside the single input point. These diagrams are **for documentation purposes only**; the hardware operates on **one point at a time**.
+
+- **Blue dashed:** original conceptual shape  
+- **Red dashed:** transformed conceptual shape  
+- **Blue dot:** input point  
+- **Red dot:** transformed point  
+- **Arrow:** movement of the point
+
+Examples:
+
+- Rotation 45°  
+  ![Rotation 45](rotation.png)  
+
+- Scaling  
+  ![Scaling](scale.png)  
+
+- Shear
+  ![Shear XY](shear.png)  
+
+- Translation
+  ![Translation](translation.png)  
+
+
+---
+
+## Example Usage
+
+Configure a 45° rotation:
+
+```text
+A = 0.707, B = -0.707
+D = 0.707, E =  0.707
+TX = 0, TY = 0
+
+Write input point: (10.0, 0.0)
+Read output: (7.07, 7.07)
 
 ## External hardware
 

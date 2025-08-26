@@ -20,11 +20,24 @@ Peripheral index: nn
 ## What it does
 
 
+
+
+
 Affine transformation in 2D can be expressed as:
 
 
 
+<div align="center">
+
+<tr>
+<td><img src="affine.png" alt="Rotation" width="100"></td>
+</tr>
+
+</div>
+
+
 Equation:
+ 
 
                                                 x' = a * x + b * y + tx
                                                 y' = d * x + e * y + ty
@@ -51,14 +64,14 @@ Document the registers that are used to interact with your peripheral
 
 | Address | Name       | Access | Description           |
 |---------|------------|--------|-----------------------|
-| 0x00    | CONTROL    | R/W    | Control               |
-| 0x04    | STATUS     | R/W    | Status                |
-| 0x08    | A          | R/W    | Coeffient a           |
-| 0x0C    | B          | R/W    | Coeffient b           |
-| 0x10    | D          | R/W    | Coeffient d           |
-| 0x14    | E          | R/W    | Coeffient e           |
-| 0x18    | TX         | R/W    | translation vector tx |
-| 0x1C    | TY         | R/W    | translation vector ty |
+| 0x00    | CONTROL    | W      | Start operation       |
+| 0x04    | STATUS     | R      | Status                |
+| 0x08    | A          | W      | Coeffient a           |
+| 0x0C    | B          | W      | Coeffient b           |
+| 0x10    | D          | W      | Coeffient d           |
+| 0x14    | E          | W      | Coeffient e           |
+| 0x18    | TX         | W      | translation offset tx |
+| 0x1C    | TY         | W      | translation offset ty |
 | 0x20    | XIN        | W      | input X               |
 | 0x24    | YIN        | W      | input Y               |
 | 0x28    | XOUT       | R      | output X              |
@@ -81,7 +94,7 @@ Single-Input Test Cases
 
 ## Conceptual Diagrams
 
-To help visualize the transformations, conceptual shapes (like a square) can be plotted alongside the single input point. These diagrams are **for documentation purposes only**; the hardware operates on **one point at a time**.
+To help visualize the transformations, a conceptual square shape is plotted alongside the single input point. These diagrams are **for documentation purposes** and the hardware in this project operates on **one point at a time only**.
 
 <div align="center">
 <table>
@@ -96,26 +109,20 @@ To help visualize the transformations, conceptual shapes (like a square) can be 
 </table>
 </div>
 
-**Legend:**
-
-- **Blue dashed:** original conceptual shape  
-- **Red dashed:** transformed conceptual shape  
-- **Blue dot:** input point  
-- **Red dot:** transformed point  
-- **Arrow:** movement of the point
-
 
 ## Example Usage
 
-Configure a 45° rotation:
+1. Configure a 45° rotation:
 
 ```text
 A = 0.707, B = -0.707
 D = 0.707, E =  0.707
-TX = 0, TY = 0
+TX = 0,    TY = 0
 
-Write input point: (10.0, 0.0)
-Read output: (7.07, 7.07)
+```
+
+2. Write input point: x = 10.0 and y' = 0.0
+3. Read output:       x' = 7.07 and y' = 7.07
 
 
 

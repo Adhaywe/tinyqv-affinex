@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
- `default_nettype none
+`default_nettype none
 
 
- module tqvp_affinex
- (
+module tqvp_affinex
+(
     input          clk,
     input          rst_n,
     input  [ 7:0]  ui_in,
@@ -19,7 +19,7 @@
     output [31:0]  data_out,
     output         data_ready,
     output         user_interrupt
-);
+ );
 
 
     logic signed [15:0] a;
@@ -63,10 +63,10 @@
 
     // FSM
     typedef enum logic [1:0] {
-        IDLE          = 2'd0,
-        MULT          = 2'd1,
-        ADD_SHIFT     = 2'd2,
-        DONE          = 2'd3
+       IDLE          = 2'd0,
+       MULT          = 2'd1,
+       ADD_SHIFT     = 2'd2,
+       DONE          = 2'd3
     } state_t;
 
     state_t currentState, nextState;
@@ -87,9 +87,9 @@
                         nextState = MULT;
 
             MULT:   if (mult_stage == 3 && done)
-                        nextState = ADD_SHIFT;
+                       nextState = ADD_SHIFT;
                     else if (!busy)
-                        start_mul = 1'b1;
+                       start_mul = 1'b1;
 
             ADD_SHIFT: nextState = DONE;
 
@@ -102,46 +102,46 @@
 
     //write logic
     always_ff @(posedge clk or negedge rst_n) begin
-          if (!rst_n) begin
-              control  <= 0;
-              a        <= 0;
-              b        <= 0;
-              d        <= 0;
-              e        <= 0;
-              tx       <= 0;
-              ty       <= 0;
-              in_x     <= 0;
-              in_y     <= 0;
+         if (!rst_n) begin
+             control  <= 0;
+             a        <= 0;
+             b        <= 0;
+             d        <= 0;
+             e        <= 0;
+             tx       <= 0;
+             ty       <= 0;
+             in_x     <= 0;
+             in_y     <= 0;
 
-          end
-          else if (data_write_n != 2'b11) begin
-             case(address)
-                 ADDR_CONTROL:  control <= data_in[0];
-                 ADDR_A      :        a <= data_in[15:0];
-                 ADDR_B      :        b <= data_in[15:0];
-                 ADDR_D      :        d <= data_in[15:0];
-                 ADDR_E      :        e <= data_in[15:0];
-                 ADDR_TX     :       tx <= data_in[15:0];
-                 ADDR_TY     :       ty <= data_in[15:0];
-                 ADDR_XIN    :     in_x <= data_in[15:0];
-                 ADDR_YIN    :     in_y <= data_in[15:0];
-                 default     : ;
-             endcase
-              end
          end
+         else if (data_write_n != 2'b11) begin
+            case(address)
+                ADDR_CONTROL:  control <= data_in[0];
+                ADDR_A      :        a <= data_in[15:0];
+                ADDR_B      :        b <= data_in[15:0];
+                ADDR_D      :        d <= data_in[15:0];
+                ADDR_E      :        e <= data_in[15:0];
+                ADDR_TX     :       tx <= data_in[15:0];
+                ADDR_TY     :       ty <= data_in[15:0];
+                ADDR_XIN    :     in_x <= data_in[15:0];
+                ADDR_YIN    :     in_y <= data_in[15:0];
+                default     : ;
+            endcase
+             end
+        end
 
 
-     // computation
-     always_ff @(posedge clk or negedge rst_n) begin
-          if (!rst_n) begin
-              acc_x      <= 0;
-              acc_y      <= 0;
-              mult_stage <= 0;
-              out_x      <= 0;
-              out_y      <= 0;
-              out_valid  <= 0;
-          end
-          else begin
+    // computation
+    always_ff @(posedge clk or negedge rst_n) begin
+         if (!rst_n) begin
+             acc_x      <= 0;
+             acc_y      <= 0;
+             mult_stage <= 0;
+             out_x      <= 0;
+             out_y      <= 0;
+             out_valid  <= 0;
+         end
+         else begin
             case (currentState)
                 IDLE:begin;
                 end
@@ -149,21 +149,14 @@
                 MULT: begin
                     if (done) begin
                         case(mult_stage)
-                            0: begin
-                                acc_x      <= res_mul;
-                            end
 
-                            1: begin
-                                acc_x      <= acc_x + res_mul;
-                            end
+                            0: acc_x <= res_mul;
 
-                            2: begin
-                                acc_y      <= res_mul;
-                            end
+                            1: acc_x <= acc_x + res_mul;
 
-                            3: begin
-                                acc_y      <= acc_y + res_mul;
-                            end
+                            2: acc_y <= res_mul;
+
+                            3: acc_y <= acc_y + res_mul;
 
                             default: ;
                         endcase
@@ -177,7 +170,7 @@
                     end
 
                 DONE: begin
-                      out_valid <= 1;
+                     out_valid <= 1;
                 end
 
                 default: ;
@@ -223,7 +216,7 @@
 
 
 
-    assign data_ready     = 1'b1;
+    assign data_ready     = out_valid;
     assign status         = out_valid ? 1'b1 : 1'b0;
     assign user_interrupt = 1'b0;
     assign uo_out[7:0]    = 8'h00;

@@ -30,7 +30,7 @@ Affine transformation in 2D can be expressed as:
 <div align="center">
 
 <tr>
-<td><img src="affine.png" alt="Rotation" width="100"></td>
+<td><img src="affine.png" alt="Rotation" width="300"></td>
 </tr>
 
 </div>
@@ -39,22 +39,22 @@ Affine transformation in 2D can be expressed as:
 Equation:
  
 
-                                                x' = a * x + b * y + tx
-                                                y' = d * x + e * y + ty
+                                                    x' = a * x + b * y + tx
+                                                    y' = d * x + e * y + ty
 
 
-                                                Input Point (x, y)
-                                                        |
-                                                        v
-                                                    [ a  b ]
-                                                    [ d  e ]  (2D Linear transformation matrix)
-                                                        |
-                                                        |
-                                                        v
-                                                Translation vector (tx, ty)
-                                                        |
-                                                        v
-                                                Output Point (x', y')
+                                                    Input Point (x, y)
+                                                            |
+                                                            v
+                                                        [ a  b ]
+                                                        [ d  e ]  (2D Linear transformation matrix)
+                                                            |
+                                                            |
+                                                            v
+                                                    Translation vector (tx, ty)
+                                                            |
+                                                            v
+                                                    Output Point (x', y')
 
 
 

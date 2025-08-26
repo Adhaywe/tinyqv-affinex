@@ -48,7 +48,7 @@ module mul
                     acc <= acc + (a_reg <<< bit_cnt);
 
                 bit_cnt <= bit_cnt + 1;
-                b_reg   <= b_reg >> 1;
+                b_reg   <= b_reg >>> 1;
 
                 if (bit_cnt == WIDTH - 1) begin
                     busy_reg <= 1'b0;

@@ -30,7 +30,7 @@ Affine transformation in 2D can be expressed as:
 <div align="center">
 
 <tr>
-<td><img src="affine.png" alt="Rotation" width="300"></td>
+<td><img src="affine.png" alt="Rotation" width="340"></td>
 </tr>
 
 </div>
@@ -59,8 +59,9 @@ Equation:
 
 
 ## Register map
-
 Document the registers that are used to interact with your peripheral
+
+<div align="center">
 
 | Address | Name       | Access | Description           |
 |---------|------------|--------|-----------------------|
@@ -77,9 +78,13 @@ Document the registers that are used to interact with your peripheral
 | 0x28    | XOUT       | R      | output X              |
 | 0x2C    | YOUT       | R      | output Y              |
 
+</div>
+
 ## How to test
 
 Single-Input Test Cases
+
+<div align="center">
 
 | Transformation | a  | b   | d   | e  | tx   | ty   | Input (x, y) | Expected Output (x’, y’) |
 | -------------- | -- | --- | --- | -- | ---- | ---- | ------------ | ------------------------ |
@@ -91,6 +96,7 @@ Single-Input Test Cases
 | Shear XY       | 1  | 0.5 | 0.5 | 1  | 0    | 0    | (1.5, -2.25) | (0.375, 0.75)            |
 | Translation    | 1  | 0   | 0   | 1  | 0.25 | -0.5 | (1.5, -2.25) | (1.75, -2.75)            |
 
+</div>
 
 ## Conceptual Diagrams
 

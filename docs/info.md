@@ -19,20 +19,19 @@ Peripheral index: nn
 
 ## What it does
 
-This project implements a 2D affine transformation accelerator in hardware using Q8.16 fixed point arithmetic.
+An affine transformation is a geometric transformation that combines linear transformation operations like rotation, scaling, shearing or reflection. These transformations are widely used in areas like computer graphics and image processing.
+
+The project implements a 2D affine transformation accelerator which is design to perform these operations in hardware using Q8.16 fixed point arithmetic.
 
 
 
 
 
 Affine transformation in 2D can be expressed as:
-
-
-
 <div align="center">
 
 <tr>
-<td><img src="affine.png" alt="Affine" width="350"></td>
+<td><img src="affine.png" alt="Affine" width="400"></td>
 </tr>
 
 </div>
@@ -41,28 +40,28 @@ Affine transformation in 2D can be expressed as:
 Equation:
  
 
-                                                    x' = a * x + b * y + tx
-                                                    y' = d * x + e * y + ty
+                                                        x' = a * x + b * y + tx
+                                                        y' = d * x + e * y + ty
 
 
-                                                    Input Point (x, y)
-                                                            |
-                                                            v
-                                                        [ a  b ]
-                                                        [ d  e ]  (2D transformation matrix)
-                                                            |
-                                                            |
-                                                            v
-                                                    Translation vector (tx, ty)
-                                                            |
-                                                            v
-                                                    Output Point (x', y')
+                                                        Input Point (x, y)
+                                                                |
+                                                                v
+                                                            [ a  b ]
+                                                            [ d  e ]  (2D transformation matrix)
+                                                                |
+                                                                |
+                                                                v
+                                                        Translation vector (tx, ty)
+                                                                |
+                                                                v
+                                                        Output Point (x', y')
 
 
 
 ## Register map
 
-<div align="center">
+
 
 | Address | Name       | Access | Description           |
 |---------|------------|--------|-----------------------|
@@ -85,7 +84,7 @@ Equation:
 
 The following test cases demonstrate common affine operations.
 
-<div align="center">
+
 
 | Transformation | a  | b   | d   | e  | tx   | ty   | Input (x, y) | Expected Output (x’, y’) |
 | -------------- | -- | --- | --- | -- | ---- | ---- | ------------ | ------------------------ |
@@ -134,3 +133,5 @@ TX = 0,    TY = 0
 ## Reference 
 
 - [Affine Transformations in Computer Graphics (Wikipedia)](https://en.wikipedia.org/wiki/Transformation_matrix#Affine_transformations)
+
+- [Affine Transformation algorithm](https://www.algorithm-archive.org/contents/affine_transformations/affine_transformations.html)

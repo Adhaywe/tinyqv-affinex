@@ -92,16 +92,18 @@ Single-Input Test Cases
 
 To help visualize the transformations, conceptual shapes (like a square) can be plotted alongside the single input point. These diagrams are **for documentation purposes only**; the hardware operates on **one point at a time**.
 
+<div align="center">
 <table>
 <tr>
-<td><img src="scale.png" alt="Rotation" width="300"></td>
-<td><img src="rotation.png" alt="Scaling" width="300"></td>
+<td><img src="scale.png" alt="Rotation" width="350"></td>
+<td><img src="rotation.png" alt="Scaling" width="350"></td>
 </tr>
 <tr>
-<td><img src="shear.png" alt="Shear" width="300"></td>
-<td><img src="translation.png" alt="Translation" width="300"></td>
+<td><img src="shear.png" alt="Shear" width="350"></td>
+<td><img src="translation.png" alt="Translation" width="350"></td>
 </tr>
 </table>
+</div>
 
 **Legend:**
 

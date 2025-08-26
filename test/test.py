@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import cocotb
+import random
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
@@ -9,19 +10,20 @@ from tqv import TinyQV
 
 PERIPHERAL_NUM = 37 
 
-# Fixed-point Q8.8 helpers
+# (Q,N) = (8,16) => 1 sign-bit + 7 integer-bits + 8 fractional-bits = 16 total-bits
+#                    |S|IIIIIII|FFFFFFFF|
 FRAC_BITS = 8
 MASK16 = 0xFFFF
 SIGN16 = 0x8000
 
-def float_to_q8_8(val: float) -> int:
+def float_to_q8_8(val):
     q = int(round(val * (1 << FRAC_BITS)))
     return q & MASK16
 
-def to_s16(u16: int) -> int:
+def to_s16(u16):
     return u16 - (1 << 16) if (u16 & SIGN16) else u16
 
-def wrap_u16(signed_val: int) -> int:
+def wrap16(signed_val):
     return signed_val & MASK16
 
 def hw_affine_q8_8(a, b, d, e, tx, ty, x, y):
@@ -30,9 +32,9 @@ def hw_affine_q8_8(a, b, d, e, tx, ty, x, y):
     tmpy = d * x + e * y
     ox = (tmpx >> FRAC_BITS) + tx
     oy = (tmpy >> FRAC_BITS) + ty
-    return wrap_u16(ox), wrap_u16(oy)
+    return wrap16(ox), wrap16(oy)
 
-# Register addresses
+# Registers
 ADDR_CONTROL    = 0x00
 ADDR_A          = 0x08
 ADDR_B          = 0x0C
@@ -46,40 +48,43 @@ ADDR_XOUT       = 0x28
 ADDR_YOUT       = 0x2C
 
 
-async def single_input_test(dut, tqv, desc, a, b, d, e, tx, ty, x, y):
-    q_a = float_to_q8_8(a)
-    q_b = float_to_q8_8(b)
-    q_d = float_to_q8_8(d)
-    q_e = float_to_q8_8(e)
-    q_tx = float_to_q8_8(tx)
-    q_ty = float_to_q8_8(ty)
-    q_x = float_to_q8_8(x)
-    q_y = float_to_q8_8(y)
+async def dut_test(dut, tqv, desc, a, b, d, e, tx, ty, x, y):
+    qa  = float_to_q8_8(a)
+    qb  = float_to_q8_8(b)
+    qd  = float_to_q8_8(d)
+    qe  = float_to_q8_8(e)
+    qtx = float_to_q8_8(tx)
+    qty = float_to_q8_8(ty)
+    qx  = float_to_q8_8(x)
+    qy  = float_to_q8_8(y)
 
-    await tqv.write_word_reg(ADDR_A, q_a)
-    await tqv.write_word_reg(ADDR_B, q_b)
-    await tqv.write_word_reg(ADDR_D, q_d)
-    await tqv.write_word_reg(ADDR_E, q_e)
-    await tqv.write_word_reg(ADDR_TX, q_tx)
-    await tqv.write_word_reg(ADDR_TY, q_ty)
-    await tqv.write_word_reg(ADDR_XIN, q_x)
-    await tqv.write_word_reg(ADDR_YIN, q_y)
+    await tqv.write_word_reg(ADDR_A, qa)
+    await tqv.write_word_reg(ADDR_B, qb)
+    await tqv.write_word_reg(ADDR_D, qd)
+    await tqv.write_word_reg(ADDR_E, qe)
+    await tqv.write_word_reg(ADDR_TX, qtx)
+    await tqv.write_word_reg(ADDR_TY, qty)
+    await tqv.write_word_reg(ADDR_XIN, qx)
+    await tqv.write_word_reg(ADDR_YIN, qy)
     await tqv.write_word_reg(ADDR_CONTROL, 1)
 
     await ClockCycles(dut.clk, 200)
 
+
     out_x = (await tqv.read_word_reg(ADDR_XOUT)) & MASK16
     out_y = (await tqv.read_word_reg(ADDR_YOUT)) & MASK16
 
-    exp_x, exp_y = hw_affine_q8_8(q_a, q_b, q_d, q_e, q_tx, q_ty, q_x, q_y)
+    exp_x, exp_y = hw_affine_q8_8(qa, qb, qd, qe, qtx, qty, qx, qy)
 
-    assert out_x == exp_x, f"{desc} X mismatch: got {out_x:#06x}, expected {exp_x:#06x}"
-    assert out_y == exp_y, f"{desc} Y mismatch: got {out_y:#06x}, expected {exp_y:#06x}"
-    dut._log.info(f"{desc} passes")
+    assert out_x == exp_x, f"{desc}: X mismatch ({out_x:#06x} != {exp_x:#06x})"
+    assert out_y == exp_y, f"{desc}: Y mismatch ({out_y:#06x} != {exp_y:#06x})"
+
+    dut._log.info(f"[{desc}] pass (x={x}, y={y} -> {out_x:#06x},{out_y:#06x})")
+
 
 @cocotb.test()
 async def test_project(dut):
-    dut._log.info("Start")
+    dut._log.info("Starting affine transformation tests")
     
     clock = Clock(dut.clk, 100, units="ns")
     cocotb.start_soon(clock.start())
@@ -88,54 +93,82 @@ async def test_project(dut):
     
     await tqv.reset()
     
-    # Normal Test Cases
-    await single_input_test(dut, tqv, "Identity-Normal", 1, 0, 0, 1, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "Scale2-Normal", 2, 0, 0, 2, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "Rotate90-Normal", 0, -1, 1, 0, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "ReflectX-Normal", -1, 0, 0, 1, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "ReflectY-Normal", 1, 0, 0, -1, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "ShearXY-Normal", 1, 0.5, 0.5, 1, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "Translate-Normal", 1, 0, 0, 1, 0.25, -0.5, 1.5, -2.25)
+    # Directed Test Cases
+    await dut_test(dut, tqv, "Scale by2", 2, 0, 0, 2, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "Rotate 90", 0, -1, 1, 0, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "Reflect x", -1, 0, 0, 1, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "Reflect y", 1, 0, 0, -1, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "Shear xy", 1, 0.5, 0.5, 1, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "Translate", 1, 0, 0, 1, 0.25, -0.5, 1.5, -2.25)
+
+    await dut_test(dut, tqv, "Scale half", 0.5, 0, 0, 0.5, 0, 0, 64.0, 64.0)
+    await dut_test(dut, tqv, "Scale half frac", 0.5, 0, 0, 0.5, 0, 0, 10.5, -20.25)
+
+    await dut_test(dut, tqv, "Rotate45 xaxis", 0.707, -0.707, 0.707, 0.707, 0, 0, 10.0, 0.0)
+    await dut_test(dut, tqv, "Rotate45 yaxis", 0.707, -0.707, 0.707, 0.707, 0, 0, 0.0, 10.0)
+
+    await dut_test(dut, tqv, "Translate-ScreenOrigin", 1.0, 0, 0, 1.0, 32.0, -16.0, 0.0, 0.0)
+    await dut_test(dut, tqv, "Translate-ScreenPoint", 1.0, 0, 0, 1.0, 32.0, -16.0, 100.0, 50.0)
+
+    await dut_test(dut, tqv, "Shear1", 1.0, 0.3, 0.0, 1.0, 0, 0, 10.0, 5.0)
+    await dut_test(dut, tqv, "Shear2", 1.0, 0.3, 0.0, 1.0, 0, 0, -20.0, 15.0)
+
+    # combined test (rotate by 90 and then translate)
+    await dut_test(dut, tqv, "Rotate90 translate1", 0, -1.0, 1.0, 0, 10.0, 20.0, 5.0, 0.0)
+    await dut_test(dut, tqv, "Rotate90 translate2", 0, -1.0, 1.0, 0, 10.0, 20.0, 0.0, 5.0)
+
+
+
     
-    # Corner Cases (original tests)
-    await single_input_test(dut, tqv, "Identity-Zero", 1.0, 0, 0, 1.0, 0, 0, 0, 0)
-    await single_input_test(dut, tqv, "Identity-One-One", 1.0, 0, 0, 1.0, 0, 0, 1.0, 1.0)
-    await single_input_test(dut, tqv, "Identity-Frac", 1.0, 0, 0, 1.0, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "Identity-MaxPos", 1.0, 0, 0, 1.0, 0, 0, 127.0, 127.0)
-    await single_input_test(dut, tqv, "Identity-MaxNeg", 1.0, 0, 0, 1.0, 0, 0, -128.0, -128.0)
+    # Corner Cases
+    await dut_test(dut, tqv, "Scale by2 zero", 2.0, 0, 0, 2.0, 0, 0, 0, 0)
+    await dut_test(dut, tqv, "Scale by2 one", 2.0, 0, 0, 2.0, 0, 0, 1.0, 1.0)
+    await dut_test(dut, tqv, "Scale by2 Frac", 2.0, 0, 0, 2.0, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "Scale by2 max positive", 2.0, 0, 0, 2.0, 0, 0, 127.0, 127.0)
+    await dut_test(dut, tqv, "Scale by2 max negative", 2.0, 0, 0, 2.0, 0, 0, -128.0, -128.0)
 
-    await single_input_test(dut, tqv, "Scale2-Zero", 2.0, 0, 0, 2.0, 0, 0, 0, 0)
-    await single_input_test(dut, tqv, "Scale2-One-One", 2.0, 0, 0, 2.0, 0, 0, 1.0, 1.0)
-    await single_input_test(dut, tqv, "Scale2-Frac", 2.0, 0, 0, 2.0, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "Scale2-MaxPos", 2.0, 0, 0, 2.0, 0, 0, 127.0, 127.0)
-    await single_input_test(dut, tqv, "Scale2-MaxNeg", 2.0, 0, 0, 2.0, 0, 0, -128.0, -128.0)
+    await dut_test(dut, tqv, "Rotate 90 zero", 0, -1.0, 1.0, 0, 0, 0, 0, 0)
+    await dut_test(dut, tqv, "Rotate 90 one", 0, -1.0, 1.0, 0, 0, 0, 1.0, 1.0)
+    await dut_test(dut, tqv, "Rotate 90 frac", 0, -1.0, 1.0, 0, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "Rotate 90 max positive", 0, -1.0, 1.0, 0, 0, 0, 127.0, 127.0)
+    await dut_test(dut, tqv, "Rotate 90 max negative", 0, -1.0, 1.0, 0, 0, 0, -128.0, -128.0)
 
-    await single_input_test(dut, tqv, "Rotate90-Zero", 0, -1.0, 1.0, 0, 0, 0, 0, 0)
-    await single_input_test(dut, tqv, "Rotate90-One-One", 0, -1.0, 1.0, 0, 0, 0, 1.0, 1.0)
-    await single_input_test(dut, tqv, "Rotate90-Frac", 0, -1.0, 1.0, 0, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "Rotate90-MaxPos", 0, -1.0, 1.0, 0, 0, 0, 127.0, 127.0)
-    await single_input_test(dut, tqv, "Rotate90-MaxNeg", 0, -1.0, 1.0, 0, 0, 0, -128.0, -128.0)
+    await dut_test(dut, tqv, "ReflectX zero", -1.0, 0, 0, 1.0, 0, 0, 0, 0)
+    await dut_test(dut, tqv, "ReflectX one", -1.0, 0, 0, 1.0, 0, 0, 1.0, 1.0)
+    await dut_test(dut, tqv, "ReflectX frac", -1.0, 0, 0, 1.0, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "ReflectX max positive", -1.0, 0, 0, 1.0, 0, 0, 127.0, 127.0)
+    await dut_test(dut, tqv, "ReflectX max negative", -1.0, 0, 0, 1.0, 0, 0, -128.0, -128.0)
 
-    await single_input_test(dut, tqv, "ReflectX-Zero", -1.0, 0, 0, 1.0, 0, 0, 0, 0)
-    await single_input_test(dut, tqv, "ReflectX-One-One", -1.0, 0, 0, 1.0, 0, 0, 1.0, 1.0)
-    await single_input_test(dut, tqv, "ReflectX-Frac", -1.0, 0, 0, 1.0, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "ReflectX-MaxPos", -1.0, 0, 0, 1.0, 0, 0, 127.0, 127.0)
-    await single_input_test(dut, tqv, "ReflectX-MaxNeg", -1.0, 0, 0, 1.0, 0, 0, -128.0, -128.0)
+    await dut_test(dut, tqv, "ReflectY zero", 1.0, 0, 0, -1.0, 0, 0, 0, 0)
+    await dut_test(dut, tqv, "ReflectY one", 1.0, 0, 0, -1.0, 0, 0, 1.0, 1.0)
+    await dut_test(dut, tqv, "ReflectY frac", 1.0, 0, 0, -1.0, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "ReflectY max positive", 1.0, 0, 0, -1.0, 0, 0, 127.0, 127.0)
+    await dut_test(dut, tqv, "ReflectY max negative", 1.0, 0, 0, -1.0, 0, 0, -128.0, -128.0)
 
-    await single_input_test(dut, tqv, "ReflectY-Zero", 1.0, 0, 0, -1.0, 0, 0, 0, 0)
-    await single_input_test(dut, tqv, "ReflectY-One-One", 1.0, 0, 0, -1.0, 0, 0, 1.0, 1.0)
-    await single_input_test(dut, tqv, "ReflectY-Frac", 1.0, 0, 0, -1.0, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "ReflectY-MaxPos", 1.0, 0, 0, -1.0, 0, 0, 127.0, 127.0)
-    await single_input_test(dut, tqv, "ReflectY-MaxNeg", 1.0, 0, 0, -1.0, 0, 0, -128.0, -128.0)
+    await dut_test(dut, tqv, "ShearXY zero", 1.0, 0.5, 0.5, 1.0, 0, 0, 0, 0)
+    await dut_test(dut, tqv, "ShearXY one", 1.0, 0.5, 0.5, 1.0, 0, 0, 1.0, 1.0)
+    await dut_test(dut, tqv, "ShearXY frac", 1.0, 0.5, 0.5, 1.0, 0, 0, 1.5, -2.25)
+    await dut_test(dut, tqv, "ShearXY max positive", 1.0, 0.5, 0.5, 1.0, 0, 0, 127.0, 127.0)
+    await dut_test(dut, tqv, "ShearXY max negative", 1.0, 0.5, 0.5, 1.0, 0, 0, -128.0, -128.0)
 
-    await single_input_test(dut, tqv, "ShearXY-Zero", 1.0, 0.5, 0.5, 1.0, 0, 0, 0, 0)
-    await single_input_test(dut, tqv, "ShearXY-One-One", 1.0, 0.5, 0.5, 1.0, 0, 0, 1.0, 1.0)
-    await single_input_test(dut, tqv, "ShearXY-Frac", 1.0, 0.5, 0.5, 1.0, 0, 0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "ShearXY-MaxPos", 1.0, 0.5, 0.5, 1.0, 0, 0, 127.0, 127.0)
-    await single_input_test(dut, tqv, "ShearXY-MaxNeg", 1.0, 0.5, 0.5, 1.0, 0, 0, -128.0, -128.0)
+    await dut_test(dut, tqv, "Translate zero", 1.0, 0, 0, 1.0, 5.0, -3.0, 0, 0)
+    await dut_test(dut, tqv, "Translate one", 1.0, 0, 0, 1.0, 5.0, -3.0, 1.0, 1.0)
+    await dut_test(dut, tqv, "Translate frac", 1.0, 0, 0, 1.0, 5.0, -3.0, 1.5, -2.25)
+    await dut_test(dut, tqv, "Translate max positive", 1.0, 0, 0, 1.0, 5.0, -3.0, 127.0, 127.0)
+    await dut_test(dut, tqv, "Translate max negative", 1.0, 0, 0, 1.0, 5.0, -3.0, -128.0, -128.0)
 
-    await single_input_test(dut, tqv, "Translate-Zero", 1.0, 0, 0, 1.0, 5.0, -3.0, 0, 0)
-    await single_input_test(dut, tqv, "Translate-One-One", 1.0, 0, 0, 1.0, 5.0, -3.0, 1.0, 1.0)
-    await single_input_test(dut, tqv, "Translate-Frac", 1.0, 0, 0, 1.0, 5.0, -3.0, 1.5, -2.25)
-    await single_input_test(dut, tqv, "Translate-MaxPos", 1.0, 0, 0, 1.0, 5.0, -3.0, 127.0, 127.0)
-    await single_input_test(dut, tqv, "Translate-MaxNeg", 1.0, 0, 0, 1.0, 5.0, -3.0, -128.0, -128.0)
+
+    # Randomized Tests
+    for i in range(40): 
+        a  = random.uniform(-4.0, 4.0)
+        b  = random.uniform(-4.0, 4.0)
+        d  = random.uniform(-4.0, 4.0)
+        e  = random.uniform(-4.0, 4.0)
+        tx = random.uniform(-10.0, 10.0)
+        ty = random.uniform(-10.0, 10.0)
+        x  = random.uniform(-128.0, 127.0)
+        y  = random.uniform(-128.0, 127.0)
+
+        await dut_test(dut, tqv, f"Random-{i}", a, b, d, e, tx, ty, x, y)
+        
+    dut._log.info("All tests completed successfully!")

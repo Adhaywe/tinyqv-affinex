@@ -96,10 +96,10 @@ To help visualize the transformations, conceptual shapes (like a square) can be 
 <table>
 <tr>
 <td><img src="scale.png" alt="Rotation" width="350"></td>
-<td><img src="rotation.png" alt="Scaling" width="350"></td>
+<td><img src="reflection.png" alt="Scaling" width="350"></td>
 </tr>
 <tr>
-<td><img src="shear.png" alt="Shear" width="350"></td>
+<td><img src="shear.png" alt="Horizontal Shear" width="350"></td>
 <td><img src="translation.png" alt="Translation" width="350"></td>
 </tr>
 </table>

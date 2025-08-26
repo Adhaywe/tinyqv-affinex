@@ -100,7 +100,7 @@ To help visualize the transformations, conceptual shapes (like a square) can be 
 </tr>
 <tr>
 <td><img src="shear.png" alt="Horizontal Shear" width="350"></td>
-<td><img src="translation.png" alt="Translation" width="350"></td>
+<td><img src="rotation.png" alt="Translation" width="350"></td>
 </tr>
 </table>
 </div>

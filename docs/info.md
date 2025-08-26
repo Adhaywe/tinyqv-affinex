@@ -19,38 +19,29 @@ Peripheral index: nn
 
 ## What it does
 
-Signle-point affine transformations 
 
 Affine transformation in 2D can be expressed as:
 
-    [ x' ]   [ a  b ] [ x ]   [ tx ]
-    [ y' ] = [ d  e ] [ y ] + [ ty ]
-
-    \[
-\begin{bmatrix} x' \\ y' \end{bmatrix} = 
-\begin{bmatrix} a & b \\ d & e \end{bmatrix} 
-\begin{bmatrix} x \\ y \end{bmatrix} + 
-\begin{bmatrix} tx \\ ty \end{bmatrix}
-\]
 
 
-Equations:
+Equation:
 
-    x' = a * x + b * y + tx
-    y' = d * x + e * y + ty
+                                                x' = a * x + b * y + tx
+                                                y' = d * x + e * y + ty
 
 
-       Input Point (x, y)
-            |
-            v
-        [ a  b ]
-        [ d  e ]  (2D Linear transformation matrix)
-            |
-            |
-            v
-    Translation vector (tx, ty)
-            v
-    Output Point (x', y')
+                                                Input Point (x, y)
+                                                        |
+                                                        v
+                                                    [ a  b ]
+                                                    [ d  e ]  (2D Linear transformation matrix)
+                                                        |
+                                                        |
+                                                        v
+                                                Translation vector (tx, ty)
+                                                        |
+                                                        v
+                                                Output Point (x', y')
 
 
 

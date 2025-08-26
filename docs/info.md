@@ -19,6 +19,8 @@ Peripheral index: nn
 
 ## What it does
 
+This project implements a 2D affine transformation accelerator in hardware using Q8.16 fixed point arithmetic.
+
 
 
 
@@ -30,7 +32,7 @@ Affine transformation in 2D can be expressed as:
 <div align="center">
 
 <tr>
-<td><img src="affine.png" alt="Rotation" width="340"></td>
+<td><img src="affine.png" alt="Affine" width="350"></td>
 </tr>
 
 </div>
@@ -47,7 +49,7 @@ Equation:
                                                             |
                                                             v
                                                         [ a  b ]
-                                                        [ d  e ]  (2D Linear transformation matrix)
+                                                        [ d  e ]  (2D transformation matrix)
                                                             |
                                                             |
                                                             v
@@ -59,7 +61,6 @@ Equation:
 
 
 ## Register map
-Document the registers that are used to interact with your peripheral
 
 <div align="center">
 
@@ -82,19 +83,18 @@ Document the registers that are used to interact with your peripheral
 
 ## How to test
 
-Single-Input Test Cases
+The following test cases demonstrate common affine operations.
 
 <div align="center">
 
 | Transformation | a  | b   | d   | e  | tx   | ty   | Input (x, y) | Expected Output (x’, y’) |
 | -------------- | -- | --- | --- | -- | ---- | ---- | ------------ | ------------------------ |
-| Identity       | 1  | 0   | 0   | 1  | 0    | 0    | (1.5, -2.25) | (1.5, -2.25)             |
 | Scale ×2       | 2  | 0   | 0   | 2  | 0    | 0    | (1.5, -2.25) | (3.0, -4.5)              |
 | Rotate 90°     | 0  | -1  | 1   | 0  | 0    | 0    | (1.5, -2.25) | (2.25, 1.5)              |
 | ReflectX       | -1 | 0   | 0   | 1  | 0    | 0    | (1.5, -2.25) | (-1.5, -2.25)            |
 | ReflectY       | 1  | 0   | 0   | -1 | 0    | 0    | (1.5, -2.25) | (1.5, 2.25)              |
 | Shear XY       | 1  | 0.5 | 0.5 | 1  | 0    | 0    | (1.5, -2.25) | (0.375, 0.75)            |
-| Translation    | 1  | 0   | 0   | 1  | 0.25 | -0.5 | (1.5, -2.25) | (1.75, -2.75)            |
+
 
 </div>
 
@@ -131,8 +131,6 @@ TX = 0,    TY = 0
 3. Read output:       x' = 7.07 and y' = 7.07
 
 
+## Reference 
 
-
-## External hardware
-
-List external hardware used in your project (e.g. PMOD, LED display, etc), if any
+- [Affine Transformations in Computer Graphics (Wikipedia)](https://en.wikipedia.org/wiki/Transformation_matrix#Affine_transformations)

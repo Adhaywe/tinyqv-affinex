@@ -11,7 +11,6 @@ module mul
     output logic                      done, busy
 );
 
-    // Internal registers
     logic signed [  WIDTH-1:0] a_reg, b_reg;
     logic signed [2*WIDTH-1:0] acc;
     logic        [        5:0] bit_cnt;

@@ -29,10 +29,10 @@ module mul
             bit_cnt    <= 0;
             busy_reg   <= 0;
             done_reg   <= 0;
-            start_reg  <= 1'b0;
+            start_reg  <= 0;
         end
         else begin
-            done_reg   <= 1'b0;
+            done_reg   <= 0;
             start_reg <= start;
 
             if (start_reg && !busy_reg) begin
@@ -40,7 +40,7 @@ module mul
                 b_reg   <= (b_i[WIDTH-1]) ? ~b_i+1 : b_i;
                 acc       <= 0;
                 bit_cnt   <= 0;
-                busy_reg  <= 1'b1;
+                busy_reg  <= 1;
             end
             else if (busy_reg) begin
                 if (b_reg[0])
@@ -50,8 +50,8 @@ module mul
                 b_reg   <= b_reg >>> 1;
 
                 if (bit_cnt == WIDTH - 1) begin
-                    busy_reg <= 1'b0;
-                    done_reg <= 1'b1;
+                    busy_reg <= 0;
+                    done_reg <= 1;
                 end
             end
         end

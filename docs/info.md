@@ -21,7 +21,7 @@ Peripheral index: 39
 
 An affine transformation is a geometric operation that combines linear transformation functions such as rotation, scaling, shearing or reflection. These transformations are widely used in areas like computer graphics and image processing.
 
-This project implements a 2D affine transformation accelerator that performs the geometric operations directly in hardware using Q8.16 fixed-point arithmetic for efficient computation.
+The project implements a 2D affine transformation accelerator that performs the geometric operations directly in hardware using Q8.16 fixed-point arithmetic for efficient computation.
 
 
 Affine transformation in 2D can be expressed as:
@@ -37,22 +37,22 @@ Affine transformation in 2D can be expressed as:
 Equation:
  
 
-                                                        x' = a * x + b * y + tx
-                                                        y' = d * x + e * y + ty
+                                                x' = a * x + b * y + tx
+                                                y' = d * x + e * y + ty
 
 
-                                                        Input Point (x, y)
-                                                                |
-                                                                v
-                                                            [ a  b ]
-                                                            [ d  e ]  (2D transformation matrix)
-                                                                |
-                                                                |
-                                                                v
-                                                        Translation vector (tx, ty)
-                                                                |
-                                                                v
-                                                        Output Point (x', y')
+                                                Input Point (x, y)
+                                                        |
+                                                        v
+                                                    [ a  b ]
+                                                    [ d  e ]  (2D transformation matrix)
+                                                        |
+                                                        |
+                                                        v
+                                                Translation vector (tx, ty)
+                                                        |
+                                                        v
+                                                Output Point (x', y')
 
 
 
@@ -114,17 +114,42 @@ To help visualize the transformations, a conceptual square shape is plotted alon
 
 ## Example Usage
 
-1. Configure a 45° rotation:
+1. **Configure the transformation coefficients**
+
+To perform a 45° rotation, the user has to precompute and set up the 2D affine matrix. The values below correspond to the rotation 
+matrix for a 45° transformation.
 
 ```text
-A = 0.707, B = -0.707
-D = 0.707, E =  0.707
-TX = 0,    TY = 0
+   A  =  0.707   // cos(45°)
+   B  = -0.707   // -sin(45°)
+   D  =  0.707   // sin(45°)
+   E  =  0.707   // cos(45°)
+   TX =  0       // No translation
+   TY =  0
 
 ```
 
-2. Write input point: x = 10.0 and y' = 0.0
-3. Read output:       x' = 7.07 and y' = 7.07
+2. **Load the input point**
+Write the x,y coordinates of the point that you want to transform;
+
+```text
+   XIN = 10.0
+   YIN = 0.0
+```
+
+3. **Start the transformation**
+Start the process by writing 1 to the control register;
+
+```text
+   CONTROL = 1
+```
+4. **Read the result**
+
+```text
+   XOUT = 7.07
+   YOUT = 7.07
+
+```
 
 
 ## Reference 

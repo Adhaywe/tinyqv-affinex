@@ -116,8 +116,8 @@ To help visualize the transformations, a conceptual square shape is plotted alon
 
 1. **Configure the transformation coefficients**
 
-To perform a 45° rotation, the user has to precompute and set up the 2D affine matrix. The values below correspond to the rotation 
-matrix for a 45° transformation.
+   To perform a 45° rotation, the user has to precompute and set up the 2D affine matrix. The values below correspond to the rotation 
+   matrix for a 45° transformation.
 
 ```text
    A  =  0.707   // cos(45°)
@@ -130,7 +130,8 @@ matrix for a 45° transformation.
 ```
 
 2. **Load the input point**
-Write the x,y coordinates of the point that you want to transform;
+
+   Write the x,y coordinates of the point that you want to transform;
 
 ```text
    XIN = 10.0
@@ -138,7 +139,8 @@ Write the x,y coordinates of the point that you want to transform;
 ```
 
 3. **Start the transformation**
-Start the process by writing 1 to the control register;
+
+   Start the process by writing 1 to the control register;
 
 ```text
    CONTROL = 1

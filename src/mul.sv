@@ -36,8 +36,8 @@ module mul
             start_reg <= start;
 
             if (start_reg && !busy_reg) begin
-                a_reg   <= (a_i[WIDTH-1]) ? ~a_i+1 : a_i;
-                b_reg   <= (b_i[WIDTH-1]) ? ~b_i+1 : b_i;
+                a_reg     <= (a_i[WIDTH-1]) ? ~a_i+1 : a_i;
+                b_reg     <= (b_i[WIDTH-1]) ? ~b_i+1 : b_i;
                 acc       <= 0;
                 bit_cnt   <= 0;
                 busy_reg  <= 1;

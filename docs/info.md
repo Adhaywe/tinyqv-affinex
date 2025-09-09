@@ -37,22 +37,22 @@ Affine transformation in 2D can be expressed as:
 Equation:
  
 
-                                                   x' = a * x + b * y + tx
-                                                   y' = d * x + e * y + ty
+                                                         x' = a * x + b * y + tx
+                                                         y' = d * x + e * y + ty
 
 
-                                                   Input Point (x, y)
-                                                         |
-                                                         v
-                                                      [ a  b ]
-                                                      [ d  e ]  (2D transformation matrix)
-                                                         |
-                                                         |
-                                                         v
-                                                   Translation vector (tx, ty)
-                                                         |
-                                                         v
-                                                   Output Point (x', y')
+                                                         Input Point (x, y)
+                                                               |
+                                                               v
+                                                            [ a  b ]
+                                                            [ d  e ]  (2D transformation matrix)
+                                                               |
+                                                               |
+                                                               v
+                                                         Translation vector (tx, ty)
+                                                               |
+                                                               v
+                                                         Output Point (x', y')
 
 
 

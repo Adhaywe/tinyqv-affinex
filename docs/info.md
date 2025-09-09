@@ -21,7 +21,7 @@ Peripheral index: 39
 
 An affine transformation is a geometric operation that combines linear transformation functions such as rotation, scaling, shearing or reflection. These transformations are widely used in areas like computer graphics and image processing.
 
-The project implements a 2D affine transformation accelerator that performs the geometric operations directly in hardware using Q8.16 fixed-point arithmetic for efficient computation.
+The project implements a 2D affine transformation accelerator that performs the geometric operations directly in hardware using Q7.8 fixed-point arithmetic for efficient computation.
 
 
 Affine transformation in 2D can be expressed as:
@@ -124,7 +124,7 @@ To help visualize the transformations, a conceptual square shape is plotted alon
    B  = -0.707   // -sin(45°)
    D  =  0.707   // sin(45°)
    E  =  0.707   // cos(45°)
-   TX =  0       // No translation
+   TX =  0       
    TY =  0
 
 ```
@@ -152,6 +152,33 @@ To help visualize the transformations, a conceptual square shape is plotted alon
    YOUT = 7.07
 
 ```
+
+
+## ✅ Verification & Testing
+
+This design is verified using a comprehensive **Python + Cocotb** testbench that simulates the affine transformation hardware and ensures correct functionality using fixed-point Q7.8 arithmetic.
+
+### What’s Tested
+
+- 🔁 **All affine operations**:
+  - Rotation (45°, 90°)
+  - Scaling (×2, ×0.5)
+  - Translation (offsets)
+  - Shearing (XY)
+  - Reflections (across X/Y axes)
+
+- 🧱 **Corner cases**:
+  - Zero inputs
+  - Max/min range (±128)
+  - Fractional and negative values
+
+- 🔄 **Randomized testing**:
+  - 40+ randomly generated transformations and input points
+
+
+## Future Work
+- Batch processing of multiple points.
+- Expand to 3D affine transformations.
 
 
 ## Reference 

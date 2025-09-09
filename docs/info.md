@@ -154,30 +154,28 @@ To help visualize the transformations, a conceptual square shape is plotted alon
 ```
 
 
-## ✅ Verification & Testing
+## Design Verification
 
-This design is verified using a comprehensive **Python + Cocotb** testbench that simulates the affine transformation hardware and ensures correct functionality using fixed-point Q7.8 arithmetic.
-
+The design is verified using **Cocotb** testbench over a wide range of input cases and the output is compared against software calculated results using the Q7.8 fixed point arithmetic.
 ### What’s Tested
 
-- 🔁 **All affine operations**:
-  - Rotation (45°, 90°)
+- **All affine operations**:
+  - Rotation (45° and 90°)
   - Scaling (×2, ×0.5)
-  - Translation (offsets)
   - Shearing (XY)
-  - Reflections (across X/Y axes)
+  - Reflections (across X/Y)
 
-- 🧱 **Corner cases**:
+- **Corner cases**:
   - Zero inputs
-  - Max/min range (±128)
-  - Fractional and negative values
+  - Max/min values (±128)
+  - Fractional and negative numbers
 
-- 🔄 **Randomized testing**:
-  - 40+ randomly generated transformations and input points
+- **Random tests**:
+  - 40 randomly generated transformations and input points
 
 
 ## Future Work
-- Batch processing of multiple points.
+- Add support for batch processing of multiple points instead of one at a time.
 - Expand to 3D affine transformations.
 
 

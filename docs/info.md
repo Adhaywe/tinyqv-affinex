@@ -159,7 +159,7 @@ To help visualize the transformations, a conceptual square shape is plotted alon
 The design is verified using **Cocotb** testbench over a wide range of input cases and the output is compared against software calculated results using the Q7.8 fixed point arithmetic.
 ### What’s Tested
 
-- **All affine operations**:
+- **Sample test cases for all affine operations**:
   - Rotation (45° and 90°)
   - Scaling (×2, ×0.5)
   - Shearing (XY)
